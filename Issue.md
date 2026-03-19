@@ -1,6 +1,6 @@
 # Issue Management
 
-* Issue HWM: 2
+* Issue HWM: 3
 * Save Point: 1f5fce8 (2026-03-19)
 
 ---
@@ -52,6 +52,13 @@
 ---
 
 ## ✅ 완료
+
+### ~~Issue3. fGoogleSheet 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 73d34bf)~~ ✅ 해결완료
+* 목적: fGoogleSheet Claude Code 플러그인을 f-claude-plugins 레포로 통합
+* 해결사항:
+  - `_public/agents/claude/`에서 `fGoogleSheet/` 하위로 plugin.json, skills, README 이동
+  - marketplace.json에 fgooglesheet 플러그인 등록 (`git-subdir` 방식)
+  - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, 상대링크 등)
 
 ### Issue1. .gitignore 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: b152bf0) ✅
 * 목표: macOS + Node.js 프로젝트에 맞는 .gitignore 설정
