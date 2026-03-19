@@ -1,7 +1,7 @@
 # Issue Management
 
 * Issue HWM: 7
-* Save Point: fe011c0 (2026-03-19)
+* Save Point: 02d1026 (2026-03-19)
 
 ---
 
@@ -40,7 +40,7 @@
   - marketplace.json에 fqrgen 플러그인 등록 (`git-subdir` 방식)
   - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, Related Extensions 링크를 본체 레포 참조로 변경)
 
-### ~~Issue6. fBoard 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: b267bd2)~~ ✅ 해결완료
+### ~~Issue6. fBoard 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: b267bd2, 02d1026)~~ ✅ 해결완료
 * 목적: fBoard Claude Code 플러그인을 f-claude-plugins 레포로 통합
 * 구현 명세:
   - `_public/agents/claude/`에서 `fBoard/` 하위로 plugin.json, skills, README 이동
