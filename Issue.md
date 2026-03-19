@@ -33,6 +33,20 @@
 
 ## ✅ 완료
 
+### ~~Issue5. fSnippet 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: bbfea18)~~ ✅ 해결완료
+* 목적: fSnippet Claude Code 플러그인을 f-claude-plugins 레포로 통합
+* 구현 명세:
+  - `_public/agents/claude/`에서 `fSnippet/` 하위로 plugin.json, skills, README 이동
+  - marketplace.json에 fsnippet 플러그인 등록 (`git-subdir` 방식)
+  - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, Related Extensions 링크를 GitHub 절대 URL로 변경)
+
+### ~~Issue2. fBanner 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 8fbe0ac)~~ ✅ 해결완료
+* 목적: fBanner Claude Code 플러그인을 마켓플레이스 배포 가능한 형태로 구성
+* 구현 명세:
+  - `fBanner/` 하위에 plugin.json, skills/fbanner/SKILL.md, README 구성
+  - marketplace.json에 fbanner 플러그인 등록 (`git-subdir` 방식)
+  - README_kr.md / README.md에 마켓플레이스 설치 방법 기재
+
 ### ~~Issue4. fWarrange 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 98fcaa7)~~ ✅ 해결완료
 * 목적: fWarrange Claude Code 플러그인을 f-claude-plugins 레포로 통합
 * 구현 명세:
