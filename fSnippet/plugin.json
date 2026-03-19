@@ -1,0 +1,18 @@
+{
+  "name": "fsnippet",
+  "version": "1.0.0",
+  "description": "Search, expand, and manage text snippets via fSnippet REST API",
+  "author": {
+    "name": "nowage",
+    "url": "https://github.com/nowage"
+  },
+  "repository": "https://github.com/Finfra/f-claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "snippet",
+    "text-expansion",
+    "clipboard",
+    "abbreviation",
+    "macos"
+  ]
+}
