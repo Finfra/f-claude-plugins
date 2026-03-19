@@ -1,0 +1,59 @@
+{
+  "name": "f-claude-plugins",
+  "owner": {
+    "name": "nowage",
+    "url": "https://github.com/nowage"
+  },
+  "plugins": [
+    {
+      "name": "fbanner",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Finfra/f-claude-plugins.git",
+        "path": "fBanner"
+      },
+      "description": "Split images/PDFs/SVGs into grid tiles via fBanner REST API",
+      "version": "1.0.0"
+    },
+    {
+      "name": "fqrgen",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Finfra/f-claude-plugins.git",
+        "path": "fQRGen"
+      },
+      "description": "Generate QR codes from URL/text via fQRGen REST API",
+      "version": "1.0.0"
+    },
+    {
+      "name": "fgooglesheet",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Finfra/f-claude-plugins.git",
+        "path": "fGoogleSheet"
+      },
+      "description": "Manage Google Sheets data (add lines, find unanswered questions) via fGoogleSheet REST API",
+      "version": "1.0.0"
+    },
+    {
+      "name": "fsnippet",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Finfra/f-claude-plugins.git",
+        "path": "fSnippet"
+      },
+      "description": "Search, expand, and manage text snippets via fSnippet REST API",
+      "version": "1.0.0"
+    },
+    {
+      "name": "fwarrange",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Finfra/f-claude-plugins.git",
+        "path": "fWarrange"
+      },
+      "description": "Save and restore macOS window layouts via fWarrange REST API",
+      "version": "1.0.0"
+    }
+  ]
+}
