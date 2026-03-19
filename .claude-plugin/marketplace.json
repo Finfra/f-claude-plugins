@@ -16,6 +16,16 @@
       "version": "1.0.0"
     },
     {
+      "name": "fboard",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Finfra/f-claude-plugins.git",
+        "path": "fBoard"
+      },
+      "description": "Control fBoard whiteboard app via REST API - window, background, presets",
+      "version": "1.0.0"
+    },
+    {
       "name": "fqrgen",
       "source": {
         "source": "git-subdir",
