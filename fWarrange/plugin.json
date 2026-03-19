@@ -1,0 +1,19 @@
+{
+  "name": "fwarrange",
+  "version": "1.0.0",
+  "description": "Save and restore macOS window layouts via fWarrange REST API",
+  "author": {
+    "name": "nowage",
+    "url": "https://github.com/nowage"
+  },
+  "repository": "https://github.com/Finfra/f-claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "window",
+    "layout",
+    "arrange",
+    "save",
+    "restore",
+    "macos"
+  ]
+}
