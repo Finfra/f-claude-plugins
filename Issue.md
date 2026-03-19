@@ -1,6 +1,6 @@
 # Issue Management
 
-* Issue HWM: 5
+* Issue HWM: 6
 * Save Point: bbfea18 (2026-03-19)
 
 ---
@@ -32,6 +32,13 @@
 ---
 
 ## ✅ 완료
+
+### ~~Issue6. fBoard 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: b267bd2)~~ ✅ 해결완료
+* 목적: fBoard Claude Code 플러그인을 f-claude-plugins 레포로 통합
+* 구현 명세:
+  - `_public/agents/claude/`에서 `fBoard/` 하위로 plugin.json, skills, README 이동
+  - plugin.json에 repository를 f-claude-plugins로 변경, keywords/license 추가
+  - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, 상대링크를 본체 레포 참조로 변경)
 
 ### ~~Issue5. fSnippet 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: bbfea18)~~ ✅ 해결완료
 * 목적: fSnippet Claude Code 플러그인을 f-claude-plugins 레포로 통합
