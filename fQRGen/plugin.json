@@ -1,0 +1,18 @@
+{
+  "name": "fqrgen",
+  "version": "1.0.0",
+  "description": "Generate QR codes from URL/text via fQRGen REST API",
+  "author": {
+    "name": "nowage",
+    "url": "https://github.com/nowage"
+  },
+  "repository": "https://github.com/Finfra/f-claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "qrcode",
+    "qr",
+    "generator",
+    "url",
+    "macos"
+  ]
+}
