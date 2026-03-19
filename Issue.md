@@ -33,42 +33,42 @@
 
 ## ✅ 완료
 
-### ~~Issue7. fQRGen 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: fe011c0)~~ ✅ 해결완료
+### Issue7. fQRGen 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: fe011c0) ✅
 * 목적: fQRGen Claude Code 플러그인을 f-claude-plugins 레포로 통합
 * 구현 명세:
   - `_public/agents/claude/`에서 `fQRGen/` 하위로 plugin.json, skills/fqrgen/SKILL.md, README 이동
   - marketplace.json에 fqrgen 플러그인 등록 (`git-subdir` 방식)
   - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, Related Extensions 링크를 본체 레포 참조로 변경)
 
-### ~~Issue6. fBoard 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: b267bd2, 02d1026)~~ ✅ 해결완료
+### Issue6. fBoard 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: b267bd2, 02d1026) ✅
 * 목적: fBoard Claude Code 플러그인을 f-claude-plugins 레포로 통합
 * 구현 명세:
   - `_public/agents/claude/`에서 `fBoard/` 하위로 plugin.json, skills, README 이동
   - plugin.json에 repository를 f-claude-plugins로 변경, keywords/license 추가
   - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, 상대링크를 본체 레포 참조로 변경)
 
-### ~~Issue5. fSnippet 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: bbfea18)~~ ✅ 해결완료
+### Issue5. fSnippet 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: bbfea18) ✅
 * 목적: fSnippet Claude Code 플러그인을 f-claude-plugins 레포로 통합
 * 구현 명세:
   - `_public/agents/claude/`에서 `fSnippet/` 하위로 plugin.json, skills, README 이동
   - marketplace.json에 fsnippet 플러그인 등록 (`git-subdir` 방식)
   - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, Related Extensions 링크를 GitHub 절대 URL로 변경)
 
-### ~~Issue2. fBanner 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 8fbe0ac)~~ ✅ 해결완료
+### Issue2. fBanner 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 8fbe0ac) ✅
 * 목적: fBanner Claude Code 플러그인을 마켓플레이스 배포 가능한 형태로 구성
 * 구현 명세:
   - `fBanner/` 하위에 plugin.json, skills/fbanner/SKILL.md, README 구성
   - marketplace.json에 fbanner 플러그인 등록 (`git-subdir` 방식)
   - README_kr.md / README.md에 마켓플레이스 설치 방법 기재
 
-### ~~Issue4. fWarrange 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 98fcaa7)~~ ✅ 해결완료
+### Issue4. fWarrange 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 98fcaa7) ✅
 * 목적: fWarrange Claude Code 플러그인을 f-claude-plugins 레포로 통합
 * 구현 명세:
   - `_public/agents/claude/`에서 `fWarrange/` 하위로 plugin.json, skills, README 이동
   - marketplace.json에 fwarrange 플러그인 등록 (`git-subdir` 방식)
   - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, 상대링크 등)
 
-### ~~Issue3. fGoogleSheet 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 73d34bf)~~ ✅ 해결완료
+### Issue3. fGoogleSheet 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 73d34bf) ✅
 * 목적: fGoogleSheet Claude Code 플러그인을 f-claude-plugins 레포로 통합
 * 해결사항:
   - `_public/agents/claude/`에서 `fGoogleSheet/` 하위로 plugin.json, skills, README 이동
