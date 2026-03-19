@@ -1,7 +1,7 @@
 # Issue Management
 
-* Issue HWM: 1
-* Save Point: xxx (2026-03-18)
+* Issue HWM: 2
+* Save Point: 1f5fce8 (2026-03-19)
 
 ---
 
@@ -23,6 +23,27 @@
 ---
 
 ## 📙 일반
+
+## Issue2. fBanner 플러그인 패키지 추가 (등록: 2026-03-19)
+* 목적: fBanner Claude Code 플러그인을 마켓플레이스 배포 가능한 형태로 구성
+* 상세:
+  - `fBanner/` 하위에 plugin.json, skills/fbanner/SKILL.md, README 구성
+  - 리포 루트에 `.claude-plugin/marketplace.json` 생성 (`git-subdir` 방식)
+  - README_kr.md / README.md에 마켓플레이스 설치 방법 기재
+  - 설치 명령어: `/plugin marketplace add Finfra/f-claude-plugins` → `/plugin install fbanner@f-claude-plugins`
+
+### Issue2_1. fBanner 플러그인 파일 구성
+* 목표: plugin.json, SKILL.md, README 파일 배치
+* 구현 명세:
+  - `fBanner/plugin.json`: 플러그인 매니페스트
+  - `fBanner/skills/fbanner/SKILL.md`: fbanner 스킬 정의
+  - `fBanner/README.md`, `fBanner/README_kr.md`: 영문/한국어 문서
+
+### Issue2_2. 마켓플레이스 설정 추가
+* 목표: `.claude-plugin/marketplace.json`으로 하위 폴더 플러그인 배포
+* 구현 명세:
+  - `git-subdir` source로 `fBanner/` 경로 지정
+  - 플러그인명: `fbanner`, 마켓플레이스명: `f-claude-plugins`
 
 ---
 
