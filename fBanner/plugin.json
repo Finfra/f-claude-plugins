@@ -1,0 +1,20 @@
+{
+  "name": "fbanner",
+  "version": "1.0.0",
+  "description": "Split images/PDFs/SVGs into grid tiles via fBanner REST API",
+  "author": {
+    "name": "nowage",
+    "url": "https://github.com/nowage"
+  },
+  "repository": "https://github.com/Finfra/f-claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "image",
+    "pdf",
+    "svg",
+    "grid",
+    "split",
+    "tiles",
+    "macos"
+  ]
+}
