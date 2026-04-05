@@ -52,7 +52,7 @@ The fGoogleSheet REST API server (`http://localhost:3013`) must be running:
 
    - **Find Unanswered** (`--unanswered` or user asks for unanswered questions):
      ```bash
-     curl -s http://localhost:3013/api/unanswered
+     curl -s http://localhost:3013/api/unanswered?startRow=2
      ```
 
    - **Check Status** (`--status` or user asks for status):
@@ -62,7 +62,7 @@ The fGoogleSheet REST API server (`http://localhost:3013`) must be running:
 
    - **Next Row** (`--next-row` or user asks for next empty row):
      ```bash
-     curl -s http://localhost:3013/api/next-row
+     curl -s http://localhost:3013/api/next-row?startRow=2
      ```
 
 3. **Verify Result**: Check the HTTP response code and parse the JSON response.
@@ -75,41 +75,49 @@ The fGoogleSheet REST API server (`http://localhost:3013`) must be running:
 
 ### Health Check
 
-| Field    | Value                 |
-| -------- | --------------------- |
-| Endpoint | `GET /`               |
-| Response | `200 OK` with status  |
+| Field    | Value                |
+| -------- | -------------------- |
+| Endpoint | `GET /`              |
+| Response | `200 OK` with status |
 
 ### Add Line
 
-| Field        | Value                                       |
-| ------------ | ------------------------------------------- |
-| Endpoint     | `POST /api/add-line`                        |
-| Content-Type | `application/json`                          |
-| `key`        | Key text to write in column A (required)    |
-| `value`      | Value text to write in column B (optional)  |
-| Response     | JSON with success status and row number     |
+| Field        | Value                                      |
+| ------------ | ------------------------------------------ |
+| Endpoint     | `POST /api/add-line`                       |
+| Content-Type | `application/json`                         |
+| `key`        | Key text to write in column A (required)   |
+| `value`      | Value text to write in column B (optional) |
+
+**Success Response**:
+```json
+{"success": true, "targetRow": 5, "nextRow": 6, "newQuestionCnt": 2, "hasNewQuestions": true}
+```
+
+**Errors**: 400 (missing key), 401 (auth expired), 500 (API failure), 503 (not initialized)
 
 ### Unanswered Questions
 
-| Field    | Value                                              |
-| -------- | -------------------------------------------------- |
-| Endpoint | `GET /api/unanswered`                              |
-| Response | JSON array of rows with A column but empty B column|
+| Field      | Value                                               |
+| ---------- | --------------------------------------------------- |
+| Endpoint   | `GET /api/unanswered?startRow=2`                    |
+| `startRow` | Row number to start scanning from (default: 2)      |
+| Response   | JSON array of rows with A column but empty B column |
 
 ### App Status
 
-| Field    | Value                                              |
-| -------- | -------------------------------------------------- |
-| Endpoint | `GET /api/status`                                  |
-| Response | JSON with execution state, auth, sheet info        |
+| Field    | Value                                       |
+| -------- | ------------------------------------------- |
+| Endpoint | `GET /api/status`                           |
+| Response | JSON with execution state, auth, sheet info |
 
 ### Next Row
 
-| Field    | Value                                |
-| -------- | ------------------------------------ |
-| Endpoint | `GET /api/next-row`                  |
-| Response | JSON with next available row number  |
+| Field      | Value                                          |
+| ---------- | ---------------------------------------------- |
+| Endpoint   | `GET /api/next-row?startRow=2`                 |
+| `startRow` | Row number to start scanning from (default: 2) |
+| Response   | JSON with next available row number            |
 
 ## Usage
 
