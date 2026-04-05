@@ -1,11 +1,15 @@
-# fWarrange Claude Code Plugin
+---
+title: fWarrange Claude Code Plugin
+description: fWarrange REST API를 통해 macOS 창 레이아웃을 저장하고 복구하는 Claude Code 플러그인
+date: 2026-03-26
+---
 
 A Claude Code plugin that saves and restores macOS window layouts via the fWarrange REST API.
 After installation, manage window layouts instantly using slash commands in Claude Code.
 
 ---
 
-## Plugin Structure
+# Plugin Structure
 
 ```
 .claude-plugin/
@@ -17,9 +21,9 @@ skills/
 
 ---
 
-## Skills
+# Skills
 
-### `fwarrange` — Window Layout Management
+## `fwarrange` — Window Layout Management
 
 Save and restore macOS window positions and sizes via the fWarrange REST API.
 
@@ -42,17 +46,17 @@ Save and restore macOS window positions and sizes via the fWarrange REST API.
 ```
 
 **Features:**
-- Guides user to launch fWarrange.app if server is not running
-- Capture current window layout with optional name and app filter
-- Restore saved layouts with customizable retry settings
-- List all saved layouts with metadata
-- Get detailed layout information (window positions, sizes)
-- Rename and delete layouts
-- Delete all layouts (with safety confirmation)
-- Remove specific windows from a layout by ID
-- View current windows and running apps
-- Check accessibility permission status
-- Get and change app locale/language
+* Guides user to launch fWarrange.app if server is not running
+* Capture current window layout with optional name and app filter
+* Restore saved layouts with customizable retry settings
+* List all saved layouts with metadata
+* Get detailed layout information (window positions, sizes)
+* Rename and delete layouts
+* Delete all layouts (with safety confirmation)
+* Remove specific windows from a layout by ID
+* View current windows and running apps
+* Check accessibility permission status
+* Get and change app locale/language
 
 **Options:**
 
@@ -85,9 +89,9 @@ Save and restore macOS window positions and sizes via the fWarrange REST API.
 
 ---
 
-## Installation
+# Installation
 
-### Option 1: Plugin Install (Recommended)
+## Option 1: Plugin Install (Recommended)
 
 Run in Claude Code:
 ```
@@ -97,7 +101,7 @@ Run in Claude Code:
 
 > The marketplace uses `git-subdir` to automatically resolve the `fWarrange/` subdirectory path.
 
-### Option 2: Manual Copy
+## Option 2: Manual Copy
 
 ```bash
 # After cloning f-claude-plugins repo
@@ -105,7 +109,7 @@ cp -r fWarrange/plugin.json .claude-plugin/plugin.json
 cp -r fWarrange/skills .claude/skills
 ```
 
-### Option 3: Symbolic Link
+## Option 3: Symbolic Link
 
 ```bash
 ln -sf fWarrange/skills/fwarrange .claude/skills/fwarrange
@@ -113,7 +117,7 @@ ln -sf fWarrange/skills/fwarrange .claude/skills/fwarrange
 
 ---
 
-## Prerequisites
+# Prerequisites
 
 The fWarrange REST API server must be running:
 
@@ -124,18 +128,18 @@ The fWarrange REST API server must be running:
 > If the server is not running, the skill will prompt the user to launch fWarrange.app.
 
 **macOS Accessibility Permission** is required for window restore functionality:
-- System Settings > Privacy & Security > Accessibility > Add fWarrange.app
+* System Settings > Privacy & Security > Accessibility > Add fWarrange.app
 
 ---
 
-## Related Extensions
+# Related Extensions
 
-| Extension                  | Location       | Description                                            |
-| -------------------------- | -------------- | ------------------------------------------------------ |
+| Extension  | Location                | Description                                            |
+| ---------- | ----------------------- | ------------------------------------------------------ |
 | MCP Server | See fWarrange main repo | Window layout management via MCP protocol (Claude Desktop compatible) |
 
 ---
 
-## License
+# License
 
 MIT

@@ -1,11 +1,15 @@
-# fQRGen Claude Code Plugin
+---
+title: fQRGen Claude Code Plugin
+description: fQRGen REST API를 통해 QR 코드를 생성하는 Claude Code 플러그인
+date: 2026-03-26
+---
 
 A Claude Code plugin that generates QR codes via the fQRGen REST API.
 After installation, generate QR codes instantly using slash commands in Claude Code.
 
 ---
 
-## Plugin Structure
+# Plugin Structure
 
 ```
 .claude-plugin/
@@ -17,9 +21,9 @@ skills/
 
 ---
 
-## Skills
+# Skills
 
-### `fqrgen` — QR Code Generation
+## `fqrgen` — QR Code Generation
 
 Generates QR code images from URLs or text via the fQRGen REST API.
 
@@ -31,10 +35,10 @@ Generates QR code images from URLs or text via the fQRGen REST API.
 ```
 
 **Features:**
-- Guides user to launch fQRGen.app if server is not running
-- Supports PNG / SVG formats
-- Opens macOS preview after generation
-- Timestamped filenames
+* Guides user to launch fQRGen.app if server is not running
+* Supports PNG / SVG formats
+* Opens macOS preview after generation
+* Timestamped filenames
 
 **Options:**
 
@@ -55,9 +59,9 @@ Generates QR code images from URLs or text via the fQRGen REST API.
 
 ---
 
-## Installation
+# Installation
 
-### Option 1: Plugin Install (Recommended)
+## Option 1: Plugin Install (Recommended)
 
 Run in Claude Code:
 ```
@@ -67,7 +71,7 @@ Run in Claude Code:
 
 > The marketplace uses `git-subdir` to automatically resolve the `fQRGen/` subdirectory path.
 
-### Option 2: Manual Copy
+## Option 2: Manual Copy
 
 ```bash
 # After cloning f-claude-plugins repo
@@ -75,7 +79,7 @@ cp -r fQRGen/plugin.json .claude-plugin/plugin.json
 cp -r fQRGen/skills .claude/skills
 ```
 
-### Option 3: Symbolic Link
+## Option 3: Symbolic Link
 
 ```bash
 ln -sf fQRGen/skills/fqrgen .claude/skills/fqrgen
@@ -83,27 +87,27 @@ ln -sf fQRGen/skills/fqrgen .claude/skills/fqrgen
 
 ---
 
-## Prerequisites
+# Prerequisites
 
 The fQRGen REST API server must be running:
 
-| Server             | How to Run                                      |
-| ------------------ | ----------------------------------------------- |
-| macOS Native App   | Launch fQRGen.app (enable REST API in Settings) |
-| Node.js Web App    | `cd lib/qrgen-node && npm start`                |
+| Server           | How to Run                                      |
+| ---------------- | ----------------------------------------------- |
+| macOS Native App | Launch fQRGen.app (enable REST API in Settings) |
+| Node.js Web App  | `cd lib/qrgen-node && npm start`                |
 
 > If the server is not running, the skill will prompt the user to launch fQRGen.app.
 
 ---
 
-## Related Extensions
+# Related Extensions
 
-| Extension                  | Location       | Description                                            |
-| -------------------------- | -------------- | ------------------------------------------------------ |
+| Extension  | Location             | Description                                            |
+| ---------- | -------------------- | ------------------------------------------------------ |
 | MCP Server | See fQRGen main repo | QR generation via MCP protocol (Claude Desktop compatible) |
 
 ---
 
-## License
+# License
 
 MIT

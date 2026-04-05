@@ -2,31 +2,31 @@
 name: fwarrange
 description: "Save and restore macOS window layouts via fWarrange REST API"
 argument-hint: "[capture|restore|list|detail|rename|delete|delete-all|remove-windows|windows|apps|status|locale] [options]"
+title: fWarrange Window Layout Management
+date: 2026-03-26
 ---
-
-# fWarrange Window Layout Management
 
 Save and restore macOS window positions and sizes via the fWarrange REST API.
 
-## Input
+# Input
 
 $ARGUMENTS
 
 If no arguments are provided, ask the user what action they want to perform:
-- **capture**: Save the current window layout
-- **restore [name]**: Restore a saved layout
-- **list**: List all saved layouts
-- **detail [name]**: Get layout details
-- **rename [name] [newName]**: Rename a layout
-- **delete [name]**: Delete a layout
-- **delete-all**: Delete all layouts
-- **remove-windows [name] [ids...]**: Remove specific windows from a layout
-- **windows**: Show current windows
-- **apps**: Show running applications
-- **status**: Check accessibility permission status
-- **locale**: Get or change app language
+* **capture**: Save the current window layout
+* **restore [name]**: Restore a saved layout
+* **list**: List all saved layouts
+* **detail [name]**: Get layout details
+* **rename [name] [newName]**: Rename a layout
+* **delete [name]**: Delete a layout
+* **delete-all**: Delete all layouts
+* **remove-windows [name] [ids...]**: Remove specific windows from a layout
+* **windows**: Show current windows
+* **apps**: Show running applications
+* **status**: Check accessibility permission status
+* **locale**: Get or change app language
 
-## Prerequisites
+# Prerequisites
 
 The fWarrange REST API server (`http://localhost:3016`) must be running:
 
@@ -34,7 +34,7 @@ The fWarrange REST API server (`http://localhost:3016`) must be running:
 | ---------------- | ------------------------------------------------- |
 | macOS Native App | Launch fWarrange.app (REST API is disabled by default. Enable it in Settings > API tab) |
 
-## Execution Steps
+# Execution Steps
 
 1. **Check Server**: Verify the fWarrange server is running.
    ```bash
@@ -150,7 +150,7 @@ The fWarrange REST API server (`http://localhost:3016`) must be running:
 
 3. **Report**: Inform the user of the result (layout name, window count, success/failure details).
 
-## API Reference (14 Endpoints)
+# API Reference (14 Endpoints)
 
 | Method | Endpoint                                  | Description                        |
 | ------ | ----------------------------------------- | ---------------------------------- |
@@ -172,78 +172,78 @@ The fWarrange REST API server (`http://localhost:3016`) must be running:
 (*) Requires `X-Confirm-Delete-All: true` header.
 
 **Response format:**
-- Success: `{"status": "ok", "data": {...}}`
-- Error: `{"status": "error", "error": "..."}`
+* Success: `{"status": "ok", "data": {...}}`
+* Error: `{"status": "error", "error": "..."}`
 
-## Usage
+# Usage
 
-### Capture current layout
+## Capture current layout
 ```bash
 curl -s -X POST http://localhost:3016/api/v1/capture \
   -H 'Content-Type: application/json' \
   -d '{"name":"my-workspace"}' | python3 -m json.tool
 ```
 
-### Restore a layout
+## Restore a layout
 ```bash
 curl -s -X POST http://localhost:3016/api/v1/layouts/my-workspace/restore \
   -H 'Content-Type: application/json' | python3 -m json.tool
 ```
 
-### List saved layouts
+## List saved layouts
 ```bash
 curl -s http://localhost:3016/api/v1/layouts | python3 -m json.tool
 ```
 
-### Get layout details
+## Get layout details
 ```bash
 curl -s http://localhost:3016/api/v1/layouts/my-workspace | python3 -m json.tool
 ```
 
-### Rename a layout
+## Rename a layout
 ```bash
 curl -s -X PUT http://localhost:3016/api/v1/layouts/my-workspace \
   -H 'Content-Type: application/json' \
   -d '{"newName":"new-workspace"}' | python3 -m json.tool
 ```
 
-### Delete a layout
+## Delete a layout
 ```bash
 curl -s -X DELETE http://localhost:3016/api/v1/layouts/my-workspace | python3 -m json.tool
 ```
 
-### Delete all layouts
+## Delete all layouts
 ```bash
 curl -s -X DELETE http://localhost:3016/api/v1/layouts \
   -H 'X-Confirm-Delete-All: true' | python3 -m json.tool
 ```
 
-### Remove specific windows from layout
+## Remove specific windows from layout
 ```bash
 curl -s -X POST http://localhost:3016/api/v1/layouts/my-workspace/windows/remove \
   -H 'Content-Type: application/json' \
   -d '{"windowIds":[14205,5032]}' | python3 -m json.tool
 ```
 
-### Get current locale
+## Get current locale
 ```bash
 curl -s http://localhost:3016/api/v1/locale | python3 -m json.tool
 ```
 
-### Change language
+## Change language
 ```bash
 curl -s -X PUT http://localhost:3016/api/v1/locale \
   -H 'Content-Type: application/json' \
   -d '{"language":"en"}' | python3 -m json.tool
 ```
 
-## Options
+# Options
 
-- `--name=<layout-name>`: Specify layout name for capture/restore
-- `--server=<url>`: Change server address (default: `http://localhost:3016`)
-- `--set=<code>`: Set locale language code
+* `--name=<layout-name>`: Specify layout name for capture/restore
+* `--server=<url>`: Change server address (default: `http://localhost:3016`)
+* `--set=<code>`: Set locale language code
 
-## Examples
+# Examples
 
 ```
 /fwarrange:fwarrange capture

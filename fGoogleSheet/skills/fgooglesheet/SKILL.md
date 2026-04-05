@@ -2,31 +2,31 @@
 name: fgooglesheet
 description: "Manage Google Sheets data via fGoogleSheet REST API"
 argument-hint: "[key] [value]"
+title: fGoogleSheet Data Management
+date: 2026-03-26
 ---
-
-# fGoogleSheet Data Management
 
 Manage Google Sheets data (add key/value lines, find unanswered questions, check status) via the fGoogleSheet REST API.
 
-## Input
+# Input
 
 $ARGUMENTS
 
 If no arguments are provided, ask the user what they want to do:
-- Add a key/value line to Google Sheets
-- Find unanswered questions
-- Check app status
-- Find next empty row
+* Add a key/value line to Google Sheets
+* Find unanswered questions
+* Check app status
+* Find next empty row
 
-## Prerequisites
+# Prerequisites
 
 The fGoogleSheet REST API server (`http://localhost:3013`) must be running:
 
-| Server             | How to Run                                            |
-| ------------------ | ----------------------------------------------------- |
-| macOS Native App   | Launch fGoogleSheet.app (enable REST API in Settings) |
+| Server           | How to Run                                            |
+| ---------------- | ----------------------------------------------------- |
+| macOS Native App | Launch fGoogleSheet.app (enable REST API in Settings) |
 
-## Execution Steps
+# Execution Steps
 
 1. **Check Server**: Verify the fGoogleSheet server is running.
    ```bash
@@ -43,44 +43,44 @@ The fGoogleSheet REST API server (`http://localhost:3013`) must be running:
 
 2. **Determine Action**: Based on user input, choose the appropriate API call:
 
-   - **Add Line** (default when key/value provided):
+   * **Add Line** (default when key/value provided):
      ```bash
      curl -s -X POST http://localhost:3013/api/add-line \
        -H 'Content-Type: application/json' \
        -d '{"key":"<KEY>","value":"<VALUE>"}'
      ```
 
-   - **Find Unanswered** (`--unanswered` or user asks for unanswered questions):
+   * **Find Unanswered** (`--unanswered` or user asks for unanswered questions):
      ```bash
      curl -s http://localhost:3013/api/unanswered?startRow=2
      ```
 
-   - **Check Status** (`--status` or user asks for status):
+   * **Check Status** (`--status` or user asks for status):
      ```bash
      curl -s http://localhost:3013/api/status
      ```
 
-   - **Next Row** (`--next-row` or user asks for next empty row):
+   * **Next Row** (`--next-row` or user asks for next empty row):
      ```bash
      curl -s http://localhost:3013/api/next-row?startRow=2
      ```
 
 3. **Verify Result**: Check the HTTP response code and parse the JSON response.
-   - Success: Report the result to the user.
-   - Error: Display the error message and suggest corrective action.
+   * Success: Report the result to the user.
+   * Error: Display the error message and suggest corrective action.
 
 4. **Report**: Inform the user of the operation result.
 
-## API Reference
+# API Reference
 
-### Health Check
+## Health Check
 
 | Field    | Value                |
 | -------- | -------------------- |
 | Endpoint | `GET /`              |
 | Response | `200 OK` with status |
 
-### Add Line
+## Add Line
 
 | Field        | Value                                      |
 | ------------ | ------------------------------------------ |
@@ -96,7 +96,7 @@ The fGoogleSheet REST API server (`http://localhost:3013`) must be running:
 
 **Errors**: 400 (missing key), 401 (auth expired), 500 (API failure), 503 (not initialized)
 
-### Unanswered Questions
+## Unanswered Questions
 
 | Field      | Value                                               |
 | ---------- | --------------------------------------------------- |
@@ -104,14 +104,14 @@ The fGoogleSheet REST API server (`http://localhost:3013`) must be running:
 | `startRow` | Row number to start scanning from (default: 2)      |
 | Response   | JSON array of rows with A column but empty B column |
 
-### App Status
+## App Status
 
 | Field    | Value                                       |
 | -------- | ------------------------------------------- |
 | Endpoint | `GET /api/status`                           |
 | Response | JSON with execution state, auth, sheet info |
 
-### Next Row
+## Next Row
 
 | Field      | Value                                          |
 | ---------- | ---------------------------------------------- |
@@ -119,9 +119,9 @@ The fGoogleSheet REST API server (`http://localhost:3013`) must be running:
 | `startRow` | Row number to start scanning from (default: 2) |
 | Response   | JSON with next available row number            |
 
-## Usage
+# Usage
 
-### Direct curl Calls
+## Direct curl Calls
 
 **Add a line:**
 ```bash
@@ -145,14 +145,14 @@ curl -s http://localhost:3013/api/status
 curl -s http://localhost:3013/api/next-row
 ```
 
-## Options
+# Options
 
-- `--unanswered`: Find unanswered questions (A column filled, B column empty)
-- `--status`: Check app status (execution state, authentication, sheet info)
-- `--next-row`: Find next available empty row
-- `--server=<url>`: Change server address (default: `http://localhost:3013`)
+* `--unanswered`: Find unanswered questions (A column filled, B column empty)
+* `--status`: Check app status (execution state, authentication, sheet info)
+* `--next-row`: Find next available empty row
+* `--server=<url>`: Change server address (default: `http://localhost:3013`)
 
-## Examples
+# Examples
 
 ```
 /fgooglesheet:fgooglesheet What is Docker? Container virtualization platform

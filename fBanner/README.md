@@ -1,11 +1,15 @@
-# fBanner Claude Code Plugin
+---
+title: fBanner Claude Code Plugin
+description: fBanner REST API를 통해 이미지, PDF, SVG를 그리드 타일로 분리하는 Claude Code 플러그인
+date: 2026-03-26
+---
 
 A Claude Code plugin that splits images, PDFs, and SVGs into grid tiles via the fBanner REST API.
 After installation, split files instantly using slash commands in Claude Code.
 
 ---
 
-## Plugin Structure
+# Plugin Structure
 
 ```
 .claude-plugin/
@@ -17,9 +21,9 @@ skills/
 
 ---
 
-## Skills
+# Skills
 
-### `fbanner` — Image Grid Splitter
+## `fbanner` — Image Grid Splitter
 
 Splits images, PDFs, and SVGs into grid tiles via the fBanner REST API.
 
@@ -33,11 +37,11 @@ Splits images, PDFs, and SVGs into grid tiles via the fBanner REST API.
 ```
 
 **Features:**
-- Guides user to launch fBanner.app if server is not running
-- Supports PNG, JPG, TIFF, BMP, GIF, PDF, SVG input
-- Export as bitmap (PNG), JPG, SVG, or PDF
-- One-step split command (load + configure + export)
-- Partial configuration updates
+* Guides user to launch fBanner.app if server is not running
+* Supports PNG, JPG, TIFF, BMP, GIF, PDF, SVG input
+* Export as bitmap (PNG), JPG, SVG, or PDF
+* One-step split command (load + configure + export)
+* Partial configuration updates
 
 **Options:**
 
@@ -45,11 +49,11 @@ Splits images, PDFs, and SVGs into grid tiles via the fBanner REST API.
 | ------------------ | ------------------------ | ----------------------- |
 | `--rows=<N>`       | Vertical splits          | `2`                     |
 | `--cols=<N>`       | Horizontal splits        | `2`                     |
-| `--format=<fmt>`   | Export format             | `bitmap`                |
-| `--output=<dir>`   | Output directory          | `resource/contents_result`   |
-| `--ratio-w=<N>`    | Horizontal ratio          | `1.0`                   |
-| `--ratio-h=<N>`    | Vertical ratio            | `1.0`                   |
-| `--server=<url>`   | Change server address     | `http://localhost:3011` |
+| `--format=<fmt>`   | Export format            | `bitmap`                |
+| `--output=<dir>`   | Output directory         | `resource/contents_result`   |
+| `--ratio-w=<N>`    | Horizontal ratio         | `1.0`                   |
+| `--ratio-h=<N>`    | Vertical ratio           | `1.0`                   |
+| `--server=<url>`   | Change server address    | `http://localhost:3011` |
 
 **API Summary:**
 
@@ -60,14 +64,14 @@ Splits images, PDFs, and SVGs into grid tiles via the fBanner REST API.
 | GET    | `/api/config` | Current split configuration              |
 | PUT    | `/api/config` | Update split configuration               |
 | POST   | `/api/load`   | Load a file by path                      |
-| POST   | `/api/export` | Export split files to directory           |
+| POST   | `/api/export` | Export split files to directory          |
 | POST   | `/api/split`  | One-step: load + configure + export      |
 
 ---
 
-## Installation
+# Installation
 
-### Option 1: Plugin Install (Recommended)
+## Option 1: Plugin Install (Recommended)
 
 Run in Claude Code:
 ```
@@ -77,7 +81,7 @@ Run in Claude Code:
 
 > The marketplace uses `git-subdir` to automatically resolve the `fBanner/` subdirectory path.
 
-### Option 2: Manual Copy
+## Option 2: Manual Copy
 
 ```bash
 # After cloning f-claude-plugins repo
@@ -85,7 +89,7 @@ cp -r fBanner/plugin.json .claude-plugin/plugin.json
 cp -r fBanner/skills .claude/skills
 ```
 
-### Option 3: Symbolic Link
+## Option 3: Symbolic Link
 
 ```bash
 ln -sf fBanner/skills/fbanner .claude/skills/fbanner
@@ -93,7 +97,7 @@ ln -sf fBanner/skills/fbanner .claude/skills/fbanner
 
 ---
 
-## Prerequisites
+# Prerequisites
 
 The fBanner REST API server must be running:
 
@@ -105,14 +109,14 @@ The fBanner REST API server must be running:
 
 ---
 
-## Related Extensions
+# Related Extensions
 
-| Extension                  | Location       | Description                                            |
-| -------------------------- | -------------- | ------------------------------------------------------ |
+| Extension  | Location              | Description                                            |
+| ---------- | --------------------- | ------------------------------------------------------ |
 | MCP Server | See fBanner main repo | Grid split via MCP protocol (Claude Desktop compatible) |
 
 ---
 
-## License
+# License
 
 MIT

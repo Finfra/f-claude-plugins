@@ -5,20 +5,21 @@ argument-hint: "[url or text]"
 date: 2026-03-30
 ---
 
+
 # Input
 
 $ARGUMENTS
 
-If no arguments are provided, ask the user for a URL.
+* If no arguments are provided, ask the user for a URL.
 
 # Prerequisites
 
 The fQRGen REST API server (`http://localhost:3014`) must be running:
 
-| Server             | How to Run                                      |
-| ------------------ | ----------------------------------------------- |
-| macOS Native App   | Launch fQRGen.app (enable REST API in Settings) |
-| Node.js Web App    | `cd lib/qrgen-node && npm start`                |
+| Server           | How to Run                                      |
+| ---------------- | ----------------------------------------------- |
+| macOS Native App | Launch fQRGen.app (enable REST API in Settings) |
+| Node.js Web App  | `cd lib/qrgen-node && npm start`                |
 
 # Execution Steps
 
@@ -54,14 +55,14 @@ The fQRGen REST API server (`http://localhost:3014`) must be running:
 
 # API Reference
 
-| Field        | Value                                                        |
-| ------------ | ------------------------------------------------------------ |
-| Endpoint     | `POST /api/generate`                                         |
-| Content-Type | `application/json`                                           |
-| `data`       | URL/text to encode in QR code (default: `https://example.com`) |
-| `format`     | `png` or `svg` (default: `png`)                              |
-| Response (PNG) | `image/png` binary                                         |
-| Response (SVG) | `image/svg+xml` text                                       |
+| Field          | Value                                                        |
+| -------------- | ------------------------------------------------------------ |
+| Endpoint       | `POST /api/generate`                                         |
+| Content-Type   | `application/json`                                           |
+| `data`         | URL/text to encode in QR code (default: `https://example.com`) |
+| `format`       | `png` or `svg` (default: `png`)                              |
+| Response (PNG) | `image/png` binary                                           |
+| Response (SVG) | `image/svg+xml` text                                         |
 
 # Usage
 

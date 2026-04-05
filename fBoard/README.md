@@ -1,11 +1,15 @@
-# fBoard Claude Code Plugin
+---
+title: fBoard Claude Code Plugin
+description: fBoard REST API를 통해 화이트보드 앱을 제어하는 Claude Code 플러그인
+date: 2026-03-26
+---
 
 A Claude Code plugin that controls the fBoard whiteboard app via REST API.
 After installation, manage window, background, and presets using slash commands in Claude Code.
 
 ---
 
-## Plugin Structure
+# Plugin Structure
 
 ```
 plugin.json              # Plugin manifest
@@ -16,9 +20,9 @@ skills/
 
 ---
 
-## Skills
+# Skills
 
-### `fboard` — Whiteboard Control
+## `fboard` — Whiteboard Control
 
 Controls the fBoard whiteboard app (window position/size, background color/image, presets) via the REST API.
 
@@ -32,11 +36,11 @@ Controls the fBoard whiteboard app (window position/size, background color/image
 ```
 
 **Features:**
-- Guides user to launch fBoard.app if server is not running
-- Background color and image management
-- Window position, size, and level control
-- Preset save/apply/delete
-- Multi-screen support
+* Guides user to launch fBoard.app if server is not running
+* Background color and image management
+* Window position, size, and level control
+* Preset save/apply/delete
+* Multi-screen support
 
 **API Summary (18 endpoints):**
 
@@ -50,9 +54,9 @@ Controls the fBoard whiteboard app (window position/size, background color/image
 
 ---
 
-## Installation
+# Installation
 
-### Option 1: Plugin Install (Recommended)
+## Option 1: Plugin Install (Recommended)
 
 Run in Claude Code:
 ```
@@ -62,7 +66,7 @@ Run in Claude Code:
 
 > The marketplace uses `git-subdir` to automatically resolve the `fBoard/` subdirectory path.
 
-### Option 2: Manual Copy
+## Option 2: Manual Copy
 
 ```bash
 # After cloning f-claude-plugins repo
@@ -70,7 +74,7 @@ cp -r fBoard/plugin.json .claude-plugin/plugin.json
 cp -r fBoard/skills .claude/skills
 ```
 
-### Option 3: Symbolic Link
+## Option 3: Symbolic Link
 
 ```bash
 ln -sf fBoard/skills/fboard .claude/skills/fboard
@@ -78,7 +82,7 @@ ln -sf fBoard/skills/fboard .claude/skills/fboard
 
 ---
 
-## Prerequisites
+# Prerequisites
 
 The fBoard REST API server must be running:
 
@@ -90,14 +94,14 @@ The fBoard REST API server must be running:
 
 ---
 
-## Related Extensions
+# Related Extensions
 
-| Extension  | Location              | Description                                            |
-| ---------- | --------------------- | ------------------------------------------------------ |
-| MCP Server | See fBoard main repo  | Whiteboard control via MCP protocol (Claude Desktop compatible) |
+| Extension  | Location             | Description                                            |
+| ---------- | -------------------- | ------------------------------------------------------ |
+| MCP Server | See fBoard main repo | Whiteboard control via MCP protocol (Claude Desktop compatible) |
 
 ---
 
-## License
+# License
 
 MIT

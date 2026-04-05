@@ -2,19 +2,19 @@
 name: fboard
 description: "Control fBoard whiteboard app via REST API"
 argument-hint: "[command] [options]"
+title: fBoard Whiteboard Control
+date: 2026-03-26
 ---
-
-# fBoard Whiteboard Control
 
 Control the fBoard whiteboard app (window, background, presets) via the fBoard REST API.
 
-## Input
+# Input
 
 $ARGUMENTS
 
-If no arguments are provided, ask the user what they want to do (e.g., change background color, apply preset, adjust window).
+* If no arguments are provided, ask the user what they want to do (e.g., change background color, apply preset, adjust window).
 
-## Prerequisites
+# Prerequisites
 
 The fBoard REST API server (`http://localhost:3012`) must be running:
 
@@ -22,7 +22,7 @@ The fBoard REST API server (`http://localhost:3012`) must be running:
 | ---------------- | ------------------------------------------------ |
 | macOS Native App | Launch fBoard.app (enable REST API in Settings)  |
 
-## Execution Steps
+# Execution Steps
 
 1. **Check Server**: Verify the fBoard server is running.
    ```bash
@@ -41,16 +41,16 @@ The fBoard REST API server (`http://localhost:3012`) must be running:
 
 3. **Report**: Inform the user of the result.
 
-## API Reference
+# API Reference
 
-### Server
+## Server
 
 | Method | Endpoint      | Description        |
 | ------ | ------------- | ------------------ |
 | GET    | `/`           | Server info        |
 | GET    | `/api/status` | Server status      |
 
-### Window
+## Window
 
 | Method | Endpoint                  | Description              |
 | ------ | ------------------------- | ------------------------ |
@@ -62,17 +62,17 @@ The fBoard REST API server (`http://localhost:3012`) must be running:
 | POST   | `/api/window/fullscreen`  | Toggle fullscreen        |
 | POST   | `/api/window/move-screen` | Move to another screen   |
 
-### Background
+## Background
 
-| Method | Endpoint                   | Description           |
-| ------ | -------------------------- | --------------------- |
-| GET    | `/api/background`          | Get background state  |
-| POST   | `/api/background/color`    | Set background color  |
-| POST   | `/api/background/image`    | Set background image  |
-| DELETE | `/api/background/image`    | Remove background image |
-| POST   | `/api/background/fill-mode`| Set image fill mode   |
+| Method | Endpoint                    | Description           |
+| ------ | --------------------------- | --------------------- |
+| GET    | `/api/background`           | Get background state  |
+| POST   | `/api/background/color`     | Set background color  |
+| POST   | `/api/background/image`     | Set background image  |
+| DELETE | `/api/background/image`     | Remove background image |
+| POST   | `/api/background/fill-mode` | Set image fill mode   |
 
-### Presets
+## Presets
 
 | Method | Endpoint              | Description        |
 | ------ | --------------------- | ------------------ |
@@ -81,15 +81,15 @@ The fBoard REST API server (`http://localhost:3012`) must be running:
 | POST   | `/api/presets/apply`  | Apply a preset     |
 | DELETE | `/api/presets/{id}`   | Delete a preset    |
 
-### Screens
+## Screens
 
-| Method | Endpoint       | Description          |
-| ------ | -------------- | -------------------- |
+| Method | Endpoint       | Description            |
+| ------ | -------------- | ---------------------- |
 | GET    | `/api/screens` | List available screens |
 
-## Usage
+# Usage
 
-### Background Color
+## Background Color
 
 ```bash
 # Set background color (hex)
@@ -98,7 +98,7 @@ curl -s -X POST http://localhost:3012/api/background/color \
   -d '{"color":"#FF5733"}'
 ```
 
-### Window Control
+## Window Control
 
 ```bash
 # Center window
@@ -115,7 +115,7 @@ curl -s -X POST http://localhost:3012/api/window/frame \
   -d '{"x":100,"y":100,"width":800,"height":600}'
 ```
 
-### Presets
+## Presets
 
 ```bash
 # List presets
@@ -127,14 +127,14 @@ curl -s -X POST http://localhost:3012/api/presets/apply \
   -d '{"id":"00000000-0000-0000-0000-000000000001"}'
 ```
 
-### Status
+## Status
 
 ```bash
 # Get current status
 curl -s http://localhost:3012/api/status
 ```
 
-## Examples
+# Examples
 
 ```
 /fboard:fboard color #FF5733
