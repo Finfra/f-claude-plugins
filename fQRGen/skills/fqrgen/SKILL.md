@@ -1,20 +1,17 @@
 ---
-name: fqrgen
+title: fqrgen
 description: "Generate QR codes from URL/text via fQRGen REST API"
 argument-hint: "[url or text]"
+date: 2026-03-30
 ---
 
-# fQRGen QR Code Generation
-
-Generate QR code images from URLs or text provided by the user via the fQRGen REST API.
-
-## Input
+# Input
 
 $ARGUMENTS
 
 If no arguments are provided, ask the user for a URL.
 
-## Prerequisites
+# Prerequisites
 
 The fQRGen REST API server (`http://localhost:3014`) must be running:
 
@@ -23,7 +20,7 @@ The fQRGen REST API server (`http://localhost:3014`) must be running:
 | macOS Native App   | Launch fQRGen.app (enable REST API in Settings) |
 | Node.js Web App    | `cd lib/qrgen-node && npm start`                |
 
-## Execution Steps
+# Execution Steps
 
 1. **Check Server**: Verify the fQRGen server is running.
    ```bash
@@ -55,7 +52,7 @@ The fQRGen REST API server (`http://localhost:3014`) must be running:
 
 4. **Report**: Inform the user of the generated file path and size.
 
-## API Reference
+# API Reference
 
 | Field        | Value                                                        |
 | ------------ | ------------------------------------------------------------ |
@@ -66,9 +63,9 @@ The fQRGen REST API server (`http://localhost:3014`) must be running:
 | Response (PNG) | `image/png` binary                                         |
 | Response (SVG) | `image/svg+xml` text                                       |
 
-## Usage
+# Usage
 
-### Direct curl Call
+## Direct curl Call
 
 **PNG:**
 ```bash
@@ -86,7 +83,7 @@ curl -s -X POST http://localhost:3014/api/generate \
   --output qr-output.svg
 ```
 
-### Node.js Client
+## Node.js Client
 
 ```javascript
 const { FQRGenClient } = require('./lib/qrgen-node/client');
@@ -94,13 +91,13 @@ const client = new FQRGenClient('http://localhost:3014');
 await client.generateAndSave('https://example.com', './qr.png');
 ```
 
-## Options
+# Options
 
-- `--format=svg`: Generate as SVG (default: PNG)
-- `--output=<path>`: Specify output path
-- `--server=<url>`: Change server address (default: `http://localhost:3014`)
+* `--format=svg`: Generate as SVG (default: PNG)
+* `--output=<path>`: Specify output path
+* `--server=<url>`: Change server address (default: `http://localhost:3014`)
 
-## Examples
+# Examples
 
 ```
 /fqrgen:fqrgen https://finfra.kr
