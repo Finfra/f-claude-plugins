@@ -42,15 +42,15 @@ fBoard REST API를 통해 화이트보드 앱(윈도우 위치/크기, 배경색
 * 프리셋 저장/적용/삭제
 * 다중 모니터 지원
 
-**API 요약 (18개 엔드포인트):**
+**API 요약 (20개 엔드포인트):**
 
-| 카테고리 | 엔드포인트                                                       |
-| -------- | ---------------------------------------------------------------- |
-| 서버     | `GET /`, `GET /api/status`                                       |
-| 윈도우   | `GET/POST /api/window/*` (level, frame, center, reset, fullscreen, move-screen) |
-| 배경     | `GET/POST/DELETE /api/background/*` (color, image, fill-mode)    |
-| 프리셋   | `GET/POST/DELETE /api/presets/*` (list, create, apply, delete)   |
-| 스크린   | `GET /api/screens`                                               |
+| 카테고리 | 엔드포인트                                                                       |
+| -------- | -------------------------------------------------------------------------------- |
+| 서버     | `GET /`, `GET /api/status`                                                       |
+| 윈도우   | `GET/POST /api/window/*` (level, frame, center, reset, fullscreen, move-screen)  |
+| 배경     | `GET/POST/DELETE /api/background/*` (color, image, fill-mode, gradient)          |
+| 프리셋   | `GET/POST/DELETE /api/presets/*` (list, create, apply, delete)                   |
+| 스크린   | `GET /api/screens`                                                               |
 
 ---
 

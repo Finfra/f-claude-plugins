@@ -55,14 +55,15 @@ The fQRGen REST API server (`http://localhost:3014`) must be running:
 
 # API Reference
 
-| Field          | Value                                                        |
-| -------------- | ------------------------------------------------------------ |
-| Endpoint       | `POST /api/generate`                                         |
-| Content-Type   | `application/json`                                           |
+| Field          | Value                                                          |
+| -------------- | -------------------------------------------------------------- |
+| Endpoint       | `POST /api/generate`                                           |
+| Content-Type   | `application/json`                                             |
 | `data`         | URL/text to encode in QR code (default: `https://example.com`) |
-| `format`       | `png` or `svg` (default: `png`)                              |
-| Response (PNG) | `image/png` binary                                           |
-| Response (SVG) | `image/svg+xml` text                                         |
+| `format`       | `png` or `svg` (default: `png`)                                |
+| `scale`        | QR image size multiplier, 5~20 (default: `10`, PNG only)       |
+| Response (PNG) | `image/png` binary                                             |
+| Response (SVG) | `image/svg+xml` text                                           |
 
 # Usage
 

@@ -64,13 +64,14 @@ The fBoard REST API server (`http://localhost:3012`) must be running:
 
 ## Background
 
-| Method | Endpoint                    | Description           |
-| ------ | --------------------------- | --------------------- |
-| GET    | `/api/background`           | Get background state  |
-| POST   | `/api/background/color`     | Set background color  |
-| POST   | `/api/background/image`     | Set background image  |
-| DELETE | `/api/background/image`     | Remove background image |
-| POST   | `/api/background/fill-mode` | Set image fill mode   |
+| Method | Endpoint                      | Description             |
+| ------ | ----------------------------- | ----------------------- |
+| GET    | `/api/background`             | Get background state    |
+| POST   | `/api/background/color`       | Set background color    |
+| POST   | `/api/background/image`       | Set background image    |
+| DELETE | `/api/background/image`       | Remove background image |
+| POST   | `/api/background/fill-mode`   | Set image fill mode     |
+| POST   | `/api/background/gradient`    | Set gradient background |
 
 ## Presets
 
@@ -125,6 +126,15 @@ curl -s http://localhost:3012/api/presets
 curl -s -X POST http://localhost:3012/api/presets/apply \
   -H 'Content-Type: application/json' \
   -d '{"id":"00000000-0000-0000-0000-000000000001"}'
+```
+
+## Gradient
+
+```bash
+# Set gradient background
+curl -s -X POST http://localhost:3012/api/background/gradient \
+  -H 'Content-Type: application/json' \
+  -d '{"startColor":"#FF5733","endColor":"#3366FF","direction":"topToBottom"}'
 ```
 
 ## Status

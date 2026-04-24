@@ -45,15 +45,19 @@ Splits images, PDFs, and SVGs into grid tiles via the fBanner REST API.
 
 **Options:**
 
-| Option             | Description              | Default                 |
-| ------------------ | ------------------------ | ----------------------- |
-| `--rows=<N>`       | Vertical splits          | `2`                     |
-| `--cols=<N>`       | Horizontal splits        | `2`                     |
-| `--format=<fmt>`   | Export format            | `bitmap`                |
-| `--output=<dir>`   | Output directory         | `resource/contents_result`   |
-| `--ratio-w=<N>`    | Horizontal ratio         | `1.0`                   |
-| `--ratio-h=<N>`    | Vertical ratio           | `1.0`                   |
-| `--server=<url>`   | Change server address    | `http://localhost:3011` |
+| Option                | Description                    | Default                 |
+| --------------------- | ------------------------------ | ----------------------- |
+| `--rows=<N>`          | Vertical splits                | `2`                     |
+| `--cols=<N>`          | Horizontal splits              | `2`                     |
+| `--format=<fmt>`      | Export format                  | `bitmap`                |
+| `--output=<dir>`      | Output directory               | `resource/contents_result` |
+| `--ratio-w=<N>`       | Horizontal ratio               | `1.0`                   |
+| `--ratio-h=<N>`       | Vertical ratio                 | `1.0`                   |
+| `--jpg-quality=<N>`   | JPEG quality (0.1~1.0)         | `0.8`                   |
+| `--pdf-mode=<mode>`   | PDF export mode                | `firstPage`             |
+| `--pdf-page=<N>`      | PDF page for selectedPage mode | `1`                     |
+| `--template=<str>`    | Export filename template       | `{name}_{rr}-{cc}`     |
+| `--server=<url>`      | Change server address          | `http://localhost:3011` |
 
 **API Summary:**
 

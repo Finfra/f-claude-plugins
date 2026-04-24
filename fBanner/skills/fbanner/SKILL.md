@@ -59,11 +59,16 @@ The fBanner REST API server (`http://localhost:3011`) must be running:
        "outputDir": "<OUTPUT_DIR>",
        "rows": <ROWS>,
        "cols": <COLS>,
-       "exportFormat": "<FORMAT>"
+       "exportFormat": "<FORMAT>",
+       "jpgQuality": <QUALITY>,
+       "pdfExportMode": "<PDF_MODE>",
+       "selectedPdfPage": <PDF_PAGE>,
+       "exportNameTemplate": "<TEMPLATE>"
      }'
    ```
    * If `--output` is not specified, use `resource/contents_result` as default output directory.
    * If `--rows` / `--cols` are not specified, default to 2x2.
+   * Only include optional fields that the user explicitly specified.
 
    ## `load`
    ```bash
@@ -120,6 +125,18 @@ The fBanner REST API server (`http://localhost:3011`) must be running:
 | `selectedPdfPage`    | int     | 1+          | 1                | PDF page number              |
 | `exportNameTemplate` | string  | -           | `{name}_{rr}-{cc}` | Output filename template   |
 
+## Filename Template Placeholders
+
+| Placeholder | Description                                          |
+| ----------- | ---------------------------------------------------- |
+| `{name}`    | Original filename (without extension)                |
+| `{rr}`      | Row number (zero-padded, 2 digits)                   |
+| `{cc}`      | Column number (zero-padded, 2 digits)                |
+| `{r}`       | Row number (no padding)                              |
+| `{c}`       | Column number (no padding)                           |
+| `{pp}`      | Page number (zero-padded, 2 digits, multi-page only) |
+| `{p}`       | Page number (no padding, multi-page only)            |
+
 ## Supported Input Formats
 
 PNG, JPG, JPEG, TIFF, BMP, GIF, PDF, SVG
@@ -132,6 +149,10 @@ PNG, JPG, JPEG, TIFF, BMP, GIF, PDF, SVG
 * `--output=<dir>`: Output directory path (default: `resource/contents_result`)
 * `--ratio-w=<N>`: Horizontal ratio (default: 1.0)
 * `--ratio-h=<N>`: Vertical ratio (default: 1.0)
+* `--jpg-quality=<N>`: JPEG quality 0.1~1.0 (default: 0.8)
+* `--pdf-mode=<mode>`: PDF export mode: `firstPage`, `allPages`, `selectedPage` (default: firstPage)
+* `--pdf-page=<N>`: PDF page number for selectedPage mode (default: 1)
+* `--template=<str>`: Export filename template (default: `{name}_{rr}-{cc}`)
 * `--server=<url>`: Change server address (default: `http://localhost:3011`)
 
 # Examples
@@ -139,6 +160,7 @@ PNG, JPG, JPEG, TIFF, BMP, GIF, PDF, SVG
 ```
 /fbanner:fbanner split resource/contents/example1.png --rows=3 --cols=4
 /fbanner:fbanner split resource/contents/example3.pdf --rows=2 --cols=2 --format=svg --output=resource/contents_result/tiles
+/fbanner:fbanner split resource/contents/example3.pdf --pdf-mode=allPages --rows=2 --cols=3
 /fbanner:fbanner load resource/contents/example1.png
 /fbanner:fbanner config --rows=2 --cols=3 --format=svg
 /fbanner:fbanner export resource/contents_result

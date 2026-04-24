@@ -42,15 +42,15 @@ Controls the fBoard whiteboard app (window position/size, background color/image
 * Preset save/apply/delete
 * Multi-screen support
 
-**API Summary (18 endpoints):**
+**API Summary (20 endpoints):**
 
-| Category   | Endpoints                                                       |
-| ---------- | --------------------------------------------------------------- |
-| Server     | `GET /`, `GET /api/status`                                      |
-| Window     | `GET/POST /api/window/*` (level, frame, center, reset, fullscreen, move-screen) |
-| Background | `GET/POST/DELETE /api/background/*` (color, image, fill-mode)   |
-| Presets    | `GET/POST/DELETE /api/presets/*` (list, create, apply, delete)  |
-| Screens    | `GET /api/screens`                                              |
+| Category   | Endpoints                                                                        |
+| ---------- | -------------------------------------------------------------------------------- |
+| Server     | `GET /`, `GET /api/status`                                                       |
+| Window     | `GET/POST /api/window/*` (level, frame, center, reset, fullscreen, move-screen)  |
+| Background | `GET/POST/DELETE /api/background/*` (color, image, fill-mode, gradient)          |
+| Presets    | `GET/POST/DELETE /api/presets/*` (list, create, apply, delete)                   |
+| Screens    | `GET /api/screens`                                                               |
 
 ---
 

@@ -50,12 +50,13 @@ Generates QR code images from URLs or text via the fQRGen REST API.
 
 **API Summary:**
 
-| Field        | Value                         |
-| ------------ | ----------------------------- |
-| Endpoint     | `POST /api/generate`          |
-| Content-Type | `application/json`            |
-| `data`       | URL/text to encode in QR code |
-| `format`     | `png` or `svg`                |
+| Field        | Value                                            |
+| ------------ | ------------------------------------------------ |
+| Endpoint     | `POST /api/generate`                             |
+| Content-Type | `application/json`                               |
+| `data`       | URL/text to encode in QR code                    |
+| `format`     | `png` or `svg`                                   |
+| `scale`      | QR image size multiplier, 5~20 (PNG only)        |
 
 ---
 
