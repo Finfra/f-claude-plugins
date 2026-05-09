@@ -61,13 +61,14 @@ The fSnippet REST API server (`http://localhost:3015`) must be running:
 
 ## Health Check
 ```bash
-curl -s http://localhost:3015/
+curl -s http://localhost:3015/             # root (legacy-compatible)
+curl -s http://localhost:3015/api/v2/status # v2 status (recommended)
 ```
 Returns server status, version, snippet count, and clipboard count.
 
 ## Search Snippets
 ```bash
-curl -s "http://localhost:3015/api/snippets/search?q=<QUERY>&limit=20"
+curl -s "http://localhost:3015/api/v2/snippets/search?q=<QUERY>&limit=20"
 ```
 Search across abbreviations, folder names, tags, and descriptions.
 
@@ -82,19 +83,19 @@ Search across abbreviations, folder names, tags, and descriptions.
 
 ## Get Snippet by Abbreviation
 ```bash
-curl -s "http://localhost:3015/api/snippets/by-abbreviation/<ABBREV>"
+curl -s "http://localhost:3015/api/v2/snippets/by-abbreviation/<ABBREV>"
 ```
 Retrieve a snippet by exact abbreviation match. The abbreviation must be URL-encoded.
 
 ## Get Snippet by ID
 ```bash
-curl -s "http://localhost:3015/api/snippets/<ID>"
+curl -s "http://localhost:3015/api/v2/snippets/<ID>"
 ```
 Retrieve full snippet content by ID (format: `folder/filename`, URL-encoded).
 
 ## Expand Snippet
 ```bash
-curl -s -X POST http://localhost:3015/api/snippets/expand \
+curl -s -X POST http://localhost:3015/api/v2/snippets/expand \
   -H 'Content-Type: application/json' \
   -d '{"abbreviation":"<ABBREV>","placeholder_values":{}}'
 ```
@@ -109,7 +110,7 @@ Expand an abbreviation to its full text. Returns text data only (no keyboard sim
 
 ## Clipboard History
 ```bash
-curl -s "http://localhost:3015/api/clipboard/history?limit=50"
+curl -s "http://localhost:3015/api/v2/clipboard/history?limit=50"
 ```
 
 **Parameters:**
@@ -124,34 +125,34 @@ curl -s "http://localhost:3015/api/clipboard/history?limit=50"
 
 ## Search Clipboard
 ```bash
-curl -s "http://localhost:3015/api/clipboard/search?q=<QUERY>&limit=50"
+curl -s "http://localhost:3015/api/v2/clipboard/search?q=<QUERY>&limit=50"
 ```
 
 ## Get Clipboard Item Detail
 ```bash
-curl -s "http://localhost:3015/api/clipboard/history/<ID>"
+curl -s "http://localhost:3015/api/v2/clipboard/history/<ID>"
 ```
 
 ## List Folders
 ```bash
-curl -s http://localhost:3015/api/folders
+curl -s http://localhost:3015/api/v2/folders
 ```
 Returns all snippet folders with rule information (prefix, suffix, trigger_bias).
 
 ## Get Folder Detail
 ```bash
-curl -s "http://localhost:3015/api/folders/<NAME>?limit=50"
+curl -s "http://localhost:3015/api/v2/folders/<NAME>?limit=50"
 ```
 Returns folder rule info and its snippet list.
 
 ## Usage Statistics (Top N)
 ```bash
-curl -s "http://localhost:3015/api/stats/top?limit=10"
+curl -s "http://localhost:3015/api/v2/stats/top?limit=10"
 ```
 
 ## Usage History
 ```bash
-curl -s "http://localhost:3015/api/stats/history?limit=100"
+curl -s "http://localhost:3015/api/v2/stats/history?limit=100"
 ```
 
 **Parameters:**
@@ -165,7 +166,7 @@ curl -s "http://localhost:3015/api/stats/history?limit=100"
 
 ## Trigger Keys
 ```bash
-curl -s http://localhost:3015/api/triggers
+curl -s http://localhost:3015/api/v2/triggers
 ```
 Returns default and active trigger key information.
 

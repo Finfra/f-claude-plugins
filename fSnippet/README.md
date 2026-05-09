@@ -54,18 +54,18 @@ Search, expand, and manage text snippets via the fSnippet REST API.
 | Category  | Endpoint                                  | Method | Description                    |
 | --------- | ----------------------------------------- | ------ | ------------------------------ |
 | Status    | `/`                                       | GET    | Health check                   |
-| Snippets  | `/api/snippets/search`                    | GET    | Search snippets by keyword     |
-| Snippets  | `/api/snippets/by-abbreviation/{abbrev}`  | GET    | Get snippet by abbreviation    |
-| Snippets  | `/api/snippets/{id}`                      | GET    | Get snippet detail by ID       |
-| Snippets  | `/api/snippets/expand`                    | POST   | Expand abbreviation to text    |
-| Clipboard | `/api/clipboard/history`                  | GET    | Get clipboard history          |
-| Clipboard | `/api/clipboard/history/{id}`             | GET    | Get clipboard item detail      |
-| Clipboard | `/api/clipboard/search`                   | GET    | Search clipboard history       |
-| Folders   | `/api/folders`                            | GET    | List all snippet folders       |
-| Folders   | `/api/folders/{name}`                     | GET    | Get folder detail with snippets|
-| Stats     | `/api/stats/top`                          | GET    | Top N usage statistics         |
-| Stats     | `/api/stats/history`                      | GET    | Usage history                  |
-| Triggers  | `/api/triggers`                           | GET    | Get trigger key information    |
+| Snippets  | `/api/v2/snippets/search`                    | GET    | Search snippets by keyword     |
+| Snippets  | `/api/v2/snippets/by-abbreviation/{abbrev}`  | GET    | Get snippet by abbreviation    |
+| Snippets  | `/api/v2/snippets/{id}`                      | GET    | Get snippet detail by ID       |
+| Snippets  | `/api/v2/snippets/expand`                    | POST   | Expand abbreviation to text    |
+| Clipboard | `/api/v2/clipboard/history`                  | GET    | Get clipboard history          |
+| Clipboard | `/api/v2/clipboard/history/{id}`             | GET    | Get clipboard item detail      |
+| Clipboard | `/api/v2/clipboard/search`                   | GET    | Search clipboard history       |
+| Folders   | `/api/v2/folders`                            | GET    | List all snippet folders       |
+| Folders   | `/api/v2/folders/{name}`                     | GET    | Get folder detail with snippets|
+| Stats     | `/api/v2/stats/top`                          | GET    | Top N usage statistics         |
+| Stats     | `/api/v2/stats/history`                      | GET    | Usage history                  |
+| Triggers  | `/api/v2/triggers`                           | GET    | Get trigger key information    |
 
 ---
 
