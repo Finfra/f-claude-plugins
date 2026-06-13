@@ -38,8 +38,9 @@ The fWarrange REST API server (`http://localhost:3016`) is provided by the **fWa
 
 1. **Check Server**: Verify the fWarrange server is running.
    ```bash
-   curl -s --connect-timeout 3 -o /dev/null -w "%{http_code}" http://localhost:3016/health
+   curl -s --connect-timeout 3 -o /dev/null -w "%{http_code}" http://localhost:3016/
    ```
+   A `200` response means the server is up. (The health endpoint is `GET /`; there is no `/health`.)
    If the server is not responding, inform the user with the start command:
    > "fWarrange REST API server (fWarrangeCli) is not running. Start it via Homebrew:"
    > ```bash
