@@ -3,7 +3,7 @@ name: fsnippet
 description: "Search, expand, and manage text snippets via fSnippet REST API"
 argument-hint: "[search query or abbreviation]"
 title: fSnippet Snippet Manager
-date: 2026-03-26
+date: 2026-06-13
 ---
 
 Search, expand, and manage text snippets via the fSnippet REST API.
@@ -22,14 +22,14 @@ If no arguments are provided, ask the user what they want to do:
 
 # Prerequisites
 
-The fSnippet REST API server (`http://localhost:3015`) must be running:
+The fSnippet REST API server (`http://localhost:3015`) is provided by the **fSnippetCli** helper — a non-sandboxed macOS agent distributed via Homebrew (not the GUI app):
 
-| Requirement      | Details                                                |
-| ---------------- | ------------------------------------------------------ |
-| macOS Native App | Launch fSnippet.app                                    |
-| API Activation   | Settings > Advanced > Enable REST API                  |
-| Default Port     | `3015` (configurable in Settings)                      |
-| Security         | Localhost only by default (`127.0.0.1/32`)             |
+| Requirement   | Details                                                 |
+| ------------- | ------------------------------------------------------- |
+| Engine        | `fSnippetCli` (`brew install finfra/tap/fsnippet-cli`)  |
+| Start service | `brew services start finfra/tap/fsnippet-cli`           |
+| Default Port  | `3015` (REST API enabled by default)                    |
+| Security      | Localhost only by default (`127.0.0.1/32`)              |
 
 # Execution Steps
 
@@ -38,16 +38,16 @@ The fSnippet REST API server (`http://localhost:3015`) must be running:
    curl -s --connect-timeout 3 http://localhost:3015/
    ```
    If the server is not responding, inform the user:
-   > "fSnippet REST API server is not running. Launch the app and enable REST API:"
+   > "fSnippet REST API server (fSnippetCli) is not running. Start it via Homebrew:"
    > ```bash
-   > open -a "fSnippet"
+   > brew services start finfra/tap/fsnippet-cli
    > ```
-   > "Then go to Settings > Advanced > Enable REST API. Let me know when ready."
+   > "Let me know when ready."
 
    Do NOT attempt to start the server automatically. Wait for user confirmation before proceeding.
 
 2. **Parse Intent**: Determine what the user wants based on $ARGUMENTS:
-   * If it looks like an abbreviation (e.g., `bb◊`, `awsec2◊`): use **Expand** flow
+   * If it looks like an abbreviation (e.g., `bb{right_command}`, `awsec2{right_command}`): use **Expand** flow
    * If it looks like a search query (e.g., `docker`, `aws ec2`): use **Search** flow
    * If it contains `clipboard` or `history`: use **Clipboard** flow
    * If it contains `folders` or `folder`: use **Folder** flow
@@ -178,7 +178,7 @@ Returns default and active trigger key information.
 
 ```
 /fsnippet:fsnippet docker
-/fsnippet:fsnippet bb◊
+/fsnippet:fsnippet bb{right_command}
 /fsnippet:fsnippet clipboard history
 /fsnippet:fsnippet folders
 /fsnippet:fsnippet stats top 5

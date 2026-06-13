@@ -3,7 +3,7 @@ name: fwarrange
 description: "Save and restore macOS window layouts via fWarrange REST API"
 argument-hint: "[capture|restore|list|detail|rename|delete|delete-all|remove-windows|windows|apps|status|locale] [options]"
 title: fWarrange Window Layout Management
-date: 2026-03-26
+date: 2026-06-13
 ---
 
 Save and restore macOS window positions and sizes via the fWarrange REST API.
@@ -28,22 +28,22 @@ If no arguments are provided, ask the user what action they want to perform:
 
 # Prerequisites
 
-The fWarrange REST API server (`http://localhost:3016`) must be running:
+The fWarrange REST API server (`http://localhost:3016`) is provided by the **fWarrangeCli** helper — a non-sandboxed macOS agent distributed via Homebrew (not the GUI app):
 
-| Server           | How to Run                                        |
-| ---------------- | ------------------------------------------------- |
-| macOS Native App | Launch fWarrange.app (REST API is disabled by default. Enable it in Settings > API tab) |
+| Server         | How to Run                                                                                                 |
+| -------------- | --------------------------------------------------------------------------------------------------------- |
+| `fWarrangeCli` | `brew install finfra/tap/fwarrange-cli` → `brew services start finfra/tap/fwarrange-cli` (REST enabled by default) |
 
 # Execution Steps
 
 1. **Check Server**: Verify the fWarrange server is running.
    ```bash
-   curl -s --connect-timeout 3 -o /dev/null -w "%{http_code}" http://localhost:3016/
+   curl -s --connect-timeout 3 -o /dev/null -w "%{http_code}" http://localhost:3016/health
    ```
-   If the server is not responding, inform the user with the launch command:
-   > "fWarrange REST API server is not running. Launch the app with:"
+   If the server is not responding, inform the user with the start command:
+   > "fWarrange REST API server (fWarrangeCli) is not running. Start it via Homebrew:"
    > ```bash
-   > open -a "fWarrange"
+   > brew services start finfra/tap/fwarrange-cli
    > ```
    > "Let me know when ready."
 
@@ -54,16 +54,16 @@ The fWarrange REST API server (`http://localhost:3016`) must be running:
    **a. `capture` or `capture --name=<name>`** — Save current window layout
    ```bash
    # Default name (auto-generated timestamp)
-   curl -s -X POST http://localhost:3016/api/v1/capture \
+   curl -s -X POST http://localhost:3016/api/v2/capture \
      -H 'Content-Type: application/json' | python3 -m json.tool
 
    # With custom name
-   curl -s -X POST http://localhost:3016/api/v1/capture \
+   curl -s -X POST http://localhost:3016/api/v2/capture \
      -H 'Content-Type: application/json' \
      -d '{"name":"<LAYOUT_NAME>"}' | python3 -m json.tool
 
    # Filter specific apps only
-   curl -s -X POST http://localhost:3016/api/v1/capture \
+   curl -s -X POST http://localhost:3016/api/v2/capture \
      -H 'Content-Type: application/json' \
      -d '{"name":"<LAYOUT_NAME>","filterApps":["Safari","iTerm2"]}' | python3 -m json.tool
    ```
@@ -71,47 +71,47 @@ The fWarrange REST API server (`http://localhost:3016`) must be running:
    **b. `restore <name>`** — Restore a saved layout
    ```bash
    # Default settings
-   curl -s -X POST http://localhost:3016/api/v1/layouts/<NAME>/restore \
+   curl -s -X POST http://localhost:3016/api/v2/layouts/<NAME>/restore \
      -H 'Content-Type: application/json' | python3 -m json.tool
 
    # Custom retry settings
-   curl -s -X POST http://localhost:3016/api/v1/layouts/<NAME>/restore \
+   curl -s -X POST http://localhost:3016/api/v2/layouts/<NAME>/restore \
      -H 'Content-Type: application/json' \
      -d '{"maxRetries":3,"retryInterval":1.0,"minimumScore":50,"enableParallel":true}' | python3 -m json.tool
    ```
 
    **c. `list`** — List all saved layouts
    ```bash
-   curl -s http://localhost:3016/api/v1/layouts | python3 -m json.tool
+   curl -s http://localhost:3016/api/v2/layouts | python3 -m json.tool
    ```
 
    **d. `detail <name>`** — Get layout details
    ```bash
-   curl -s http://localhost:3016/api/v1/layouts/<NAME> | python3 -m json.tool
+   curl -s http://localhost:3016/api/v2/layouts/<NAME> | python3 -m json.tool
    ```
 
    **e. `rename <name> <newName>`** — Rename a layout
    ```bash
-   curl -s -X PUT http://localhost:3016/api/v1/layouts/<NAME> \
+   curl -s -X PUT http://localhost:3016/api/v2/layouts/<NAME> \
      -H 'Content-Type: application/json' \
      -d '{"newName":"<NEW_NAME>"}' | python3 -m json.tool
    ```
 
    **f. `delete <name>`** — Delete a specific layout
    ```bash
-   curl -s -X DELETE http://localhost:3016/api/v1/layouts/<NAME> | python3 -m json.tool
+   curl -s -X DELETE http://localhost:3016/api/v2/layouts/<NAME> | python3 -m json.tool
    ```
 
    **g. `delete-all`** — Delete all layouts (requires confirmation)
    ```bash
-   curl -s -X DELETE http://localhost:3016/api/v1/layouts \
+   curl -s -X DELETE http://localhost:3016/api/v2/layouts \
      -H 'X-Confirm-Delete-All: true' | python3 -m json.tool
    ```
    **WARNING**: Always confirm with the user before executing this command.
 
    **h. `remove-windows <name> <id1> <id2> ...`** — Remove specific windows from a layout
    ```bash
-   curl -s -X POST http://localhost:3016/api/v1/layouts/<NAME>/windows/remove \
+   curl -s -X POST http://localhost:3016/api/v2/layouts/<NAME>/windows/remove \
      -H 'Content-Type: application/json' \
      -d '{"windowIds":[<ID1>,<ID2>]}' | python3 -m json.tool
    ```
@@ -119,32 +119,33 @@ The fWarrange REST API server (`http://localhost:3016`) must be running:
    **i. `windows`** — Show current windows
    ```bash
    # All windows
-   curl -s http://localhost:3016/api/v1/windows/current | python3 -m json.tool
+   curl -s http://localhost:3016/api/v2/windows/current | python3 -m json.tool
 
    # Filter by specific apps
-   curl -s "http://localhost:3016/api/v1/windows/current?filterApps=Safari,iTerm2" | python3 -m json.tool
+   curl -s "http://localhost:3016/api/v2/windows/current?filterApps=Safari,iTerm2" | python3 -m json.tool
    ```
 
    **j. `apps`** — Show running applications
    ```bash
-   curl -s http://localhost:3016/api/v1/windows/apps | python3 -m json.tool
+   curl -s http://localhost:3016/api/v2/windows/apps | python3 -m json.tool
    ```
 
    **k. `status`** — Check accessibility permission
    ```bash
-   curl -s http://localhost:3016/api/v1/status/accessibility | python3 -m json.tool
+   curl -s http://localhost:3016/api/v2/status/accessibility | python3 -m json.tool
    ```
 
-   **l. `locale`** — Get current locale setting
+   **l. `locale`** — Get current app language (via /settings/general)
    ```bash
-   curl -s http://localhost:3016/api/v1/locale | python3 -m json.tool
+   curl -s http://localhost:3016/api/v2/settings/general | python3 -m json.tool
+   # The `appLanguage` field shows the current locale.
    ```
 
-   **m. `locale --set=<code>`** — Change app language
+   **m. `locale --set=<code>`** — Change app language (via /settings/general)
    ```bash
-   curl -s -X PUT http://localhost:3016/api/v1/locale \
+   curl -s -X PATCH http://localhost:3016/api/v2/settings/general \
      -H 'Content-Type: application/json' \
-     -d '{"language":"<LANG_CODE>"}' | python3 -m json.tool
+     -d '{"appLanguage":"<LANG_CODE>"}' | python3 -m json.tool
    ```
    Supported: `system`, `ko`, `en`, `ja`, `ar`, `zh-Hans`, `zh-Hant`, `fr`, `de`, `hi`, `es`
 
@@ -155,19 +156,19 @@ The fWarrange REST API server (`http://localhost:3016`) must be running:
 | Method | Endpoint                                  | Description                        |
 | ------ | ----------------------------------------- | ---------------------------------- |
 | GET    | `/`                                       | Health check                       |
-| GET    | `/api/v1/layouts`                         | List all layouts                   |
-| DELETE | `/api/v1/layouts`                         | Delete all layouts (*)             |
-| GET    | `/api/v1/layouts/{name}`                  | Get layout details                 |
-| PUT    | `/api/v1/layouts/{name}`                  | Rename a layout                    |
-| DELETE | `/api/v1/layouts/{name}`                  | Delete a layout                    |
-| POST   | `/api/v1/capture`                         | Capture current layout             |
-| POST   | `/api/v1/layouts/{name}/restore`          | Restore a layout                   |
-| POST   | `/api/v1/layouts/{name}/windows/remove`   | Remove specific windows            |
-| GET    | `/api/v1/windows/current`                 | List current windows               |
-| GET    | `/api/v1/windows/apps`                    | List running apps                  |
-| GET    | `/api/v1/status/accessibility`            | Check accessibility status         |
-| GET    | `/api/v1/locale`                          | Get locale setting                 |
-| PUT    | `/api/v1/locale`                          | Change locale setting              |
+| GET    | `/api/v2/layouts`                         | List all layouts                   |
+| DELETE | `/api/v2/layouts`                         | Delete all layouts (*)             |
+| GET    | `/api/v2/layouts/{name}`                  | Get layout details                 |
+| PUT    | `/api/v2/layouts/{name}`                  | Rename a layout                    |
+| DELETE | `/api/v2/layouts/{name}`                  | Delete a layout                    |
+| POST   | `/api/v2/capture`                         | Capture current layout             |
+| POST   | `/api/v2/layouts/{name}/restore`          | Restore a layout                   |
+| POST   | `/api/v2/layouts/{name}/windows/remove`   | Remove specific windows            |
+| GET    | `/api/v2/windows/current`                 | List current windows               |
+| GET    | `/api/v2/windows/apps`                    | List running apps                  |
+| GET    | `/api/v2/status/accessibility`            | Check accessibility status         |
+| GET    | `/api/v2/settings/general`                | Get app settings (incl. appLanguage)   |
+| PATCH  | `/api/v2/settings/general`                | Update app settings (incl. appLanguage)|
 
 (*) Requires `X-Confirm-Delete-All: true` header.
 
@@ -179,62 +180,63 @@ The fWarrange REST API server (`http://localhost:3016`) must be running:
 
 ## Capture current layout
 ```bash
-curl -s -X POST http://localhost:3016/api/v1/capture \
+curl -s -X POST http://localhost:3016/api/v2/capture \
   -H 'Content-Type: application/json' \
   -d '{"name":"my-workspace"}' | python3 -m json.tool
 ```
 
 ## Restore a layout
 ```bash
-curl -s -X POST http://localhost:3016/api/v1/layouts/my-workspace/restore \
+curl -s -X POST http://localhost:3016/api/v2/layouts/my-workspace/restore \
   -H 'Content-Type: application/json' | python3 -m json.tool
 ```
 
 ## List saved layouts
 ```bash
-curl -s http://localhost:3016/api/v1/layouts | python3 -m json.tool
+curl -s http://localhost:3016/api/v2/layouts | python3 -m json.tool
 ```
 
 ## Get layout details
 ```bash
-curl -s http://localhost:3016/api/v1/layouts/my-workspace | python3 -m json.tool
+curl -s http://localhost:3016/api/v2/layouts/my-workspace | python3 -m json.tool
 ```
 
 ## Rename a layout
 ```bash
-curl -s -X PUT http://localhost:3016/api/v1/layouts/my-workspace \
+curl -s -X PUT http://localhost:3016/api/v2/layouts/my-workspace \
   -H 'Content-Type: application/json' \
   -d '{"newName":"new-workspace"}' | python3 -m json.tool
 ```
 
 ## Delete a layout
 ```bash
-curl -s -X DELETE http://localhost:3016/api/v1/layouts/my-workspace | python3 -m json.tool
+curl -s -X DELETE http://localhost:3016/api/v2/layouts/my-workspace | python3 -m json.tool
 ```
 
 ## Delete all layouts
 ```bash
-curl -s -X DELETE http://localhost:3016/api/v1/layouts \
+curl -s -X DELETE http://localhost:3016/api/v2/layouts \
   -H 'X-Confirm-Delete-All: true' | python3 -m json.tool
 ```
 
 ## Remove specific windows from layout
 ```bash
-curl -s -X POST http://localhost:3016/api/v1/layouts/my-workspace/windows/remove \
+curl -s -X POST http://localhost:3016/api/v2/layouts/my-workspace/windows/remove \
   -H 'Content-Type: application/json' \
   -d '{"windowIds":[14205,5032]}' | python3 -m json.tool
 ```
 
-## Get current locale
+## Get current locale (via /settings/general)
 ```bash
-curl -s http://localhost:3016/api/v1/locale | python3 -m json.tool
+curl -s http://localhost:3016/api/v2/settings/general | python3 -m json.tool
+# The `appLanguage` field shows the current locale.
 ```
 
-## Change language
+## Change language (via /settings/general)
 ```bash
-curl -s -X PUT http://localhost:3016/api/v1/locale \
+curl -s -X PATCH http://localhost:3016/api/v2/settings/general \
   -H 'Content-Type: application/json' \
-  -d '{"language":"en"}' | python3 -m json.tool
+  -d '{"appLanguage":"en"}' | python3 -m json.tool
 ```
 
 # Options
