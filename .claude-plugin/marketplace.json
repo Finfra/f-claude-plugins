@@ -23,7 +23,7 @@
         "path": "fBoard"
       },
       "description": "Control fBoard whiteboard app via REST API - window, background, presets",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
     {
       "name": "fqrgen",
@@ -42,8 +42,8 @@
         "url": "https://github.com/Finfra/f-claude-plugins.git",
         "path": "fGoogleSheet"
       },
-      "description": "Manage Google Sheets data (add lines, find unanswered questions) via fGoogleSheet REST API",
-      "version": "1.0.0"
+      "description": "Manage Google Sheets data (add lines, set fields, clear ranges, find unanswered questions) via fGoogleSheet REST API",
+      "version": "1.2.0"
     },
     {
       "name": "fsnippet",
@@ -62,8 +62,18 @@
         "url": "https://github.com/Finfra/f-claude-plugins.git",
         "path": "fWarrange"
       },
-      "description": "Save and restore macOS window layouts via fWarrange REST API",
-      "version": "1.0.0"
+      "description": "Save/restore macOS window layouts, manage context modes, and configure the fWarrange helper via REST API",
+      "version": "1.1.0"
+    },
+    {
+      "name": "fpm-core",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Finfra/fpm.git",
+        "path": "plugins/fpm-core"
+      },
+      "description": "fpm 핵심 SCAR — pm 프로젝트 관리(cdf), hub HTML 렌더 + 양방향 Q&A + Live Dashboard. 글로벌 hub/dashboard 스택 번들.",
+      "version": "0.2.12"
     }
   ]
 }
