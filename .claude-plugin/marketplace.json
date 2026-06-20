@@ -69,11 +69,11 @@
       "name": "fpm-core",
       "source": {
         "source": "git-subdir",
-        "url": "https://github.com/Finfra/fpm.git",
-        "path": "plugins/fpm-core"
+        "url": "https://github.com/Finfra/f-claude-plugins.git",
+        "path": "fpm-core"
       },
       "description": "fpm 핵심 SCAR — pm 프로젝트 관리(cdf), hub HTML 렌더 + 양방향 Q&A + Live Dashboard. 글로벌 hub/dashboard 스택 번들.",
-      "version": "0.2.12"
+      "version": "0.2.16"
     }
   ]
 }
