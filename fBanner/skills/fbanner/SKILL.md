@@ -3,7 +3,7 @@ name: fbanner
 description: "Split images/PDFs/SVGs into grid tiles via fBanner REST API"
 argument-hint: "[command] [path] [--options]"
 title: fBanner Image Grid Splitter
-date: 2026-03-26
+date: 2026-06-20
 ---
 
 Split images, PDFs, and SVGs into grid tiles via the fBanner REST API.
@@ -61,6 +61,8 @@ The fBanner REST API server (`http://localhost:3011`) must be running:
        "cols": <COLS>,
        "exportFormat": "<FORMAT>",
        "jpgQuality": <QUALITY>,
+       "imageAspectW": <ASPECT_W>,
+       "imageAspectH": <ASPECT_H>,
        "pdfExportMode": "<PDF_MODE>",
        "selectedPdfPage": <PDF_PAGE>,
        "exportNameTemplate": "<TEMPLATE>"
@@ -120,7 +122,9 @@ The fBanner REST API server (`http://localhost:3011`) must be running:
 | `ratioW`             | float   | 0.1-10.0    | 1.0              | Horizontal ratio             |
 | `ratioH`             | float   | 0.1-10.0    | 1.0              | Vertical ratio               |
 | `exportFormat`       | string  | bitmap/jpg/svg/pdf | bitmap    | Output format                |
-| `jpgQuality`         | float   | 0.1-1.0     | 0.8              | JPEG quality                 |
+| `jpgQuality`         | float   | 0.1-1.0     | 0.8              | JPEG quality (bitmap/jpg)    |
+| `imageAspectW`       | float   | 0.1-10.0    | 1.0              | Image aspect ratio width     |
+| `imageAspectH`       | float   | 0.1-10.0    | 1.0              | Image aspect ratio height    |
 | `pdfExportMode`      | string  | firstPage/allPages/selectedPage | firstPage | PDF export mode |
 | `selectedPdfPage`    | int     | 1+          | 1                | PDF page number              |
 | `exportNameTemplate` | string  | -           | `{name}_{rr}-{cc}` | Output filename template   |
@@ -150,6 +154,8 @@ PNG, JPG, JPEG, TIFF, BMP, GIF, PDF, SVG
 * `--ratio-w=<N>`: Horizontal ratio (default: 1.0)
 * `--ratio-h=<N>`: Vertical ratio (default: 1.0)
 * `--jpg-quality=<N>`: JPEG quality 0.1~1.0 (default: 0.8)
+* `--aspect-w=<N>`: Image aspect ratio width 0.1~10.0 (default: 1.0)
+* `--aspect-h=<N>`: Image aspect ratio height 0.1~10.0 (default: 1.0)
 * `--pdf-mode=<mode>`: PDF export mode: `firstPage`, `allPages`, `selectedPage` (default: firstPage)
 * `--pdf-page=<N>`: PDF page number for selectedPage mode (default: 1)
 * `--template=<str>`: Export filename template (default: `{name}_{rr}-{cc}`)

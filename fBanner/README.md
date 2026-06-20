@@ -54,6 +54,8 @@ Splits images, PDFs, and SVGs into grid tiles via the fBanner REST API.
 | `--ratio-w=<N>`       | Horizontal ratio               | `1.0`                   |
 | `--ratio-h=<N>`       | Vertical ratio                 | `1.0`                   |
 | `--jpg-quality=<N>`   | JPEG quality (0.1~1.0)         | `0.8`                   |
+| `--aspect-w=<N>`      | Image aspect ratio width (0.1~10.0) | `1.0`             |
+| `--aspect-h=<N>`      | Image aspect ratio height (0.1~10.0) | `1.0`            |
 | `--pdf-mode=<mode>`   | PDF export mode                | `firstPage`             |
 | `--pdf-page=<N>`      | PDF page for selectedPage mode | `1`                     |
 | `--template=<str>`    | Export filename template       | `{name}_{rr}-{cc}`     |
