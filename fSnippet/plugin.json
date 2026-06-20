@@ -1,7 +1,7 @@
 {
   "name": "fsnippet",
-  "version": "1.0.0",
-  "description": "Search, expand, and manage text snippets via fSnippet REST API",
+  "version": "1.1.0",
+  "description": "Search, expand, create, delete, and manage text snippets via fSnippet REST API",
   "author": {
     "name": "nowage",
     "url": "https://github.com/nowage"

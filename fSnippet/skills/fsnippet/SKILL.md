@@ -1,13 +1,14 @@
 ---
 name: fsnippet
-description: "Search, expand, and manage text snippets via fSnippet REST API"
+description: "Search, expand, create, delete, and manage text snippets via fSnippet REST API"
 argument-hint: "[search query or abbreviation]"
 title: fSnippet Snippet Manager
-date: 2026-06-13
+date: 2026-06-20
 ---
 
-Search, expand, and manage text snippets via the fSnippet REST API.
-Supports snippet search/expansion, clipboard history, folder browsing, and usage statistics.
+Search, expand, create, delete, and manage text snippets via the fSnippet REST API.
+Supports snippet search/expansion, snippet & folder CRUD, clipboard history, folder browsing,
+usage statistics, and CLI helper control (pause/resume/reload).
 
 # Input
 
@@ -49,9 +50,12 @@ The fSnippet REST API server (`http://localhost:3015`) is provided by the **fSni
 2. **Parse Intent**: Determine what the user wants based on $ARGUMENTS:
    * If it looks like an abbreviation (e.g., `bb{right_command}`, `awsec2{right_command}`): use **Expand** flow
    * If it looks like a search query (e.g., `docker`, `aws ec2`): use **Search** flow
+   * If it contains `create`, `add`, or `new`: use **Create Snippet / Create Folder** flow
+   * If it contains `delete` or `remove`: use **Delete Snippet / Delete Folder** flow
    * If it contains `clipboard` or `history`: use **Clipboard** flow
    * If it contains `folders` or `folder`: use **Folder** flow
    * If it contains `stats` or `statistics`: use **Stats** flow
+   * If it contains `pause`, `resume`, `reload`, or `version`: use **CLI Control** flow
 
 3. **Execute the appropriate flow** (see API Reference below).
 
@@ -108,6 +112,45 @@ Expand an abbreviation to its full text. Returns text data only (no keyboard sim
 | `abbreviation`       | Yes      | Abbreviation to expand             |
 | `placeholder_values` | No       | Key-value map for placeholder fill |
 
+## List Snippets
+```bash
+curl -s "http://localhost:3015/api/v2/snippets?limit=50&folder=<FOLDER>"
+```
+List all snippets with optional folder filtering and pagination.
+
+**Parameters:**
+
+| Param    | Required | Default | Description              |
+| -------- | -------- | ------- | ------------------------ |
+| `limit`  | No       | 50      | Max results (1-200)      |
+| `offset` | No       | 0       | Pagination offset        |
+| `folder` | No       | -       | Filter by folder name    |
+
+## Create Snippet
+```bash
+curl -s -X POST http://localhost:3015/api/v2/snippets \
+  -H 'Content-Type: application/json' \
+  -d '{"folder":"Docker","keyword":"dps","name":"docker ps","content":"docker ps -a"}'
+```
+Create a new snippet file as `keyword===name.txt` in the given folder. If `keyword` is empty,
+the file is created as `===name.txt`. Returns `201` on success.
+
+**Request Body:**
+
+| Field     | Required | Description                                  |
+| --------- | -------- | -------------------------------------------- |
+| `folder`  | Yes      | Target folder name (must exist)              |
+| `keyword` | No       | Abbreviation keyword (empty → `===name.txt`) |
+| `name`    | Yes      | Snippet display name (file name part)        |
+| `content` | Yes      | Snippet body text                            |
+
+## Delete Snippet
+```bash
+curl -s -X DELETE "http://localhost:3015/api/v2/snippets/<ID>"
+```
+Delete a snippet file by ID. ID format is `folder/keyword===name.txt` (URL-encoded).
+Always confirm with the user before deleting.
+
 ## Clipboard History
 ```bash
 curl -s "http://localhost:3015/api/v2/clipboard/history?limit=50"
@@ -145,6 +188,22 @@ curl -s "http://localhost:3015/api/v2/folders/<NAME>?limit=50"
 ```
 Returns folder rule info and its snippet list.
 
+## Create Folder
+```bash
+curl -s -X POST http://localhost:3015/api/v2/folders \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"MyNewFolder"}'
+```
+Create a new snippet folder. Name must not contain `/` or `..`. Returns `201` on success,
+`409` if the folder already exists.
+
+## Delete Folder
+```bash
+curl -s -X DELETE "http://localhost:3015/api/v2/folders/<NAME>"
+```
+Delete a snippet folder. **Only empty folders can be deleted** (hidden files and rule files
+starting with `_` are ignored when checking emptiness). Always confirm with the user first.
+
 ## Usage Statistics (Top N)
 ```bash
 curl -s "http://localhost:3015/api/v2/stats/top?limit=10"
@@ -170,6 +229,26 @@ curl -s http://localhost:3015/api/v2/triggers
 ```
 Returns default and active trigger key information.
 
+## CLI Control
+Control the fSnippetCli helper engine. Useful for temporarily suspending snippet expansion
+or reloading resources after editing snippet files.
+
+```bash
+curl -s http://localhost:3015/api/v2/cli/status        # GET  — engine running state
+curl -s http://localhost:3015/api/v2/cli/version       # GET  — CLI helper version
+curl -s -X POST http://localhost:3015/api/v2/cli/pause   # POST — suspend snippet expansion
+curl -s -X POST http://localhost:3015/api/v2/cli/resume  # POST — restore snippet expansion
+curl -s -X POST http://localhost:3015/api/v2/reload      # POST — reload all snippet resources
+```
+
+| Endpoint        | Method | Description                                      |
+| --------------- | ------ | ------------------------------------------------ |
+| `/cli/status`   | GET    | Engine running/paused state                      |
+| `/cli/version`  | GET    | CLI helper version string                        |
+| `/cli/pause`    | POST   | Suspend snippet expansion (typing still logged)  |
+| `/cli/resume`   | POST   | Restore snippet expansion                         |
+| `/reload`       | POST   | Reload all snippet/rule resources from disk      |
+
 # Options
 
 * `--server=<url>`: Change server address (default: `http://localhost:3015`)
@@ -182,5 +261,10 @@ Returns default and active trigger key information.
 /fsnippet:fsnippet clipboard history
 /fsnippet:fsnippet folders
 /fsnippet:fsnippet stats top 5
+/fsnippet:fsnippet create snippet in Docker
+/fsnippet:fsnippet delete snippet Docker/dps===docker ps.txt
+/fsnippet:fsnippet create folder MyNewFolder
+/fsnippet:fsnippet pause
+/fsnippet:fsnippet reload
 /fsnippet:fsnippet search aws ec2 --server=http://localhost:3015
 ```

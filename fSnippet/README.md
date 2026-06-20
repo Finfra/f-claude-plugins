@@ -49,23 +49,33 @@ Search, expand, and manage text snippets via the fSnippet REST API.
 | ----------------- | --------------------- | ----------------------- |
 | `--server=<url>`  | Change server address | `http://localhost:3015` |
 
-**API Summary (13 Endpoints):**
+**API Summary (23 Endpoints):**
 
 | Category  | Endpoint                                  | Method | Description                    |
 | --------- | ----------------------------------------- | ------ | ------------------------------ |
 | Status    | `/`                                       | GET    | Health check                   |
+| Snippets  | `/api/v2/snippets`                            | GET    | List snippets (folder filter)  |
+| Snippets  | `/api/v2/snippets`                            | POST   | Create snippet                 |
 | Snippets  | `/api/v2/snippets/search`                    | GET    | Search snippets by keyword     |
 | Snippets  | `/api/v2/snippets/by-abbreviation/{abbrev}`  | GET    | Get snippet by abbreviation    |
 | Snippets  | `/api/v2/snippets/{id}`                      | GET    | Get snippet detail by ID       |
+| Snippets  | `/api/v2/snippets/{id}`                      | DELETE | Delete snippet by ID           |
 | Snippets  | `/api/v2/snippets/expand`                    | POST   | Expand abbreviation to text    |
 | Clipboard | `/api/v2/clipboard/history`                  | GET    | Get clipboard history          |
 | Clipboard | `/api/v2/clipboard/history/{id}`             | GET    | Get clipboard item detail      |
 | Clipboard | `/api/v2/clipboard/search`                   | GET    | Search clipboard history       |
 | Folders   | `/api/v2/folders`                            | GET    | List all snippet folders       |
+| Folders   | `/api/v2/folders`                            | POST   | Create folder                  |
 | Folders   | `/api/v2/folders/{name}`                     | GET    | Get folder detail with snippets|
+| Folders   | `/api/v2/folders/{name}`                     | DELETE | Delete empty folder            |
 | Stats     | `/api/v2/stats/top`                          | GET    | Top N usage statistics         |
 | Stats     | `/api/v2/stats/history`                      | GET    | Usage history                  |
 | Triggers  | `/api/v2/triggers`                           | GET    | Get trigger key information    |
+| CLI       | `/api/v2/cli/status`                         | GET    | Engine running/paused state    |
+| CLI       | `/api/v2/cli/version`                        | GET    | CLI helper version             |
+| CLI       | `/api/v2/cli/pause`                          | POST   | Suspend snippet expansion      |
+| CLI       | `/api/v2/cli/resume`                         | POST   | Restore snippet expansion      |
+| CLI       | `/api/v2/reload`                             | POST   | Reload all snippet resources   |
 
 ---
 
