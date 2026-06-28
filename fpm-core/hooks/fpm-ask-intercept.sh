@@ -185,7 +185,7 @@ reason = (
     "Mode A paste-back fallback 은 Issue45(2026-05-19) 에서 제거됨. "
     "form 자동 회수 단일 경로만 지원.\n\n"
     "### 조치 (사용자 선택)\n"
-    "1. **서버 시작 후 재시도**: \`/dashboard-server start\` 실행 → 본 질문 재호출\n"
+    "1. **서버 시작 후 재시도**: \`/fpm-hub-server start\` 실행 → 본 질문 재호출\n"
     "2. **hub 모드 해제**: \`..hub stop\` 입력 → AskUserQuestion 채팅 UI 로 정상 복귀\n\n"
     "### 채팅 응답 의무\n"
     "Claude 는 본 deny 를 받으면 사용자에게 위 두 옵션을 명확히 제시하고 입력 대기. "
@@ -209,21 +209,27 @@ case "$_db" in
   chrome|Chrome)      _app="Google Chrome" ;;
   edge|Edge)          _app="Microsoft Edge" ;;
   safari|Safari)      _app="Safari" ;;
+  none|None|NONE|off) _app="" ;;   # 브라우저 미존재 환경(서버) — open 생략
   *)                  _app="$_db" ;;
 esac
-# browser_focus: false(기본)=백그라운드 open(-g, 포커스 미탈취), true=foreground
-if grep -qE '^[[:space:]]*browser_focus:[[:space:]]*true' "$HUB_SETTING_FILE" 2>/dev/null; then
-  _focus="true"; HTM_OPEN_CMD="open -a \"$_app\""
+if [ -z "$_app" ]; then
+  # default_browser: none — 브라우저 미설치 서버. open 명령 미생성 → hub URL 로 폼 접속.
+  _focus="false"; HTM_OPEN_CMD=""
 else
-  _focus="false"; HTM_OPEN_CMD="open -g -a \"$_app\""
-fi
-# Issue162: browser_tab_reuse=true & 재사용 가능 브라우저(chrome/edge/safari) → 탭 재사용 helper 로 치환.
-#   match=:9876 origin → /hub 대시보드 + htm-doc?path=… 모든 hub URL 단일 탭. file:// 등 미매칭은 새 탭(폴백 동등).
-_reuse=$(grep -E '^[[:space:]]*browser_tab_reuse:' "$HUB_SETTING_FILE" 2>/dev/null | head -1 | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*#.*$//; s/[[:space:]]*$//')
-_helper="$HOME/_git/___pm/plugins/fpm-core/hooks/fpm-browser-open.sh"
-case "$_app" in "Google Chrome"|"Microsoft Edge"|"Safari") _reusable=1 ;; *) _reusable=0 ;; esac
-if [ "$_reuse" = "true" ] && [ "$_reusable" = "1" ] && [ -f "$_helper" ]; then
-  HTM_OPEN_CMD="bash \"$_helper\" -a \"$_app\" -f \"$_focus\" -r true -m http://127.0.0.1:9876"
+  # browser_focus: false(기본)=백그라운드 open(-g, 포커스 미탈취), true=foreground
+  if grep -qE '^[[:space:]]*browser_focus:[[:space:]]*true' "$HUB_SETTING_FILE" 2>/dev/null; then
+    _focus="true"; HTM_OPEN_CMD="open -a \"$_app\""
+  else
+    _focus="false"; HTM_OPEN_CMD="open -g -a \"$_app\""
+  fi
+  # Issue162: browser_tab_reuse=true & 재사용 가능 브라우저(chrome/edge/safari) → 탭 재사용 helper 로 치환.
+  #   match=:9876 origin → /hub 대시보드 + htm-doc?path=… 모든 hub URL 단일 탭. file:// 등 미매칭은 새 탭(폴백 동등).
+  _reuse=$(grep -E '^[[:space:]]*browser_tab_reuse:' "$HUB_SETTING_FILE" 2>/dev/null | head -1 | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*#.*$//; s/[[:space:]]*$//')
+  _helper="$HOME/_git/___pm/plugins/fpm-core/hooks/fpm-browser-open.sh"
+  case "$_app" in "Google Chrome"|"Microsoft Edge"|"Safari") _reusable=1 ;; *) _reusable=0 ;; esac
+  if [ "$_reuse" = "true" ] && [ "$_reusable" = "1" ] && [ -f "$_helper" ]; then
+    HTM_OPEN_CMD="bash \"$_helper\" -a \"$_app\" -f \"$_focus\" -r true -m http://127.0.0.1:9876"
+  fi
 fi
 
 QUESTIONS_JSON="$questions_json" \
@@ -251,6 +257,13 @@ cwd_hash = os.environ.get('CWD_HASH', '')
 inbox_dir = os.environ.get('INBOX_DIR', '')
 cwd = os.environ.get('PROJECT_CWD', '')
 open_cmd = os.environ.get('HTM_OPEN_CMD', 'open -g -a Firefox')
+# default_browser: none → open_cmd 빈값. open 생략하고 hub URL 로 폼 접속 안내.
+if open_cmd:
+    open_heading = "**2. 저장 + Firefox open**:"
+    open_line = f"   {open_cmd} \"file://<절대경로>\"\n"
+else:
+    open_heading = "**2. 저장 (default_browser: none — open 생략)**:"
+    open_line = "   # 브라우저 미존재(서버). open 금지. Write 시 register-doc 자동 → http://127.0.0.1:{}/htm-doc?path=<절대경로> 로 폼 접속\n".format(server_port)
 cwd_q = urllib.parse.quote(cwd) if cwd else ''
 # Issue157: 헤더 버튼(open-project/open-session)용 프로젝트 루트 — cwd 가 _doc_work/z_htm 하위면 보정
 project_root = cwd.split('/_doc_work/')[0] if cwd and '/_doc_work/' in cwd else cwd
@@ -346,7 +359,7 @@ project_header_guide = (
     "       onclick=\"event.preventDefault();fetch('http://127.0.0.1:__SPORT__/open-project',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cwd:'__ROOT__'})}).then(function(r){return r.json();}).then(function(j){if(j&&j.error)alert('VSCode 열기 실패: '+j.error);}).catch(function(){alert('hub 서버 미응답 — VSCode 열기 실패');});\">📁 __PNAME__</a>\n"
     "    <a class=\"sess-link\" href=\"#\" title=\"클릭 → 이 문서를 만든 세션 탭으로 포커스\"\n"
     "       onclick=\"event.preventDefault();fetch('http://127.0.0.1:__SPORT__/open-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cwd:'__ROOT__',sid:'__SID__'})}).then(function(r){return r.json();}).then(function(j){if(j&&j.error)alert('세션 열기 실패: '+j.error);}).catch(function(){alert('hub 서버 미응답 — 세션 열기 실패');});\">🆚 세션</a>\n"
-    "    <a class=\"hub-link\" href=\"http://127.0.0.1:__SPORT__/hub\" target=\"_blank\" title=\"통합 모니터링 Hub\"><img src=\"http://127.0.0.1:__SPORT__/fpm-icon.png\" alt=\"Hub\" style=\"height:1.2em;vertical-align:-0.25em;\"></a>\n"
+    "    <a class=\"hub-link\" href=\"http://127.0.0.1:__SPORT__/hub\" onclick=\"if(location.protocol!=='file:'){event.preventDefault();window.open('/hub','_blank');}\" target=\"_blank\" title=\"통합 모니터링 Hub\"><img src=\"http://127.0.0.1:__SPORT__/fpm-icon.png\" alt=\"Hub\" style=\"height:1.2em;vertical-align:-0.25em;\"></a>\n"
     "    <button type=\"button\" onclick=\"window.close()\">닫기 ✕</button>\n"
     "  </nav>\n"
     "</header>\n"
@@ -388,10 +401,10 @@ reason = (
     "   - `<div id=\"status\">` (전송 결과 표시 영역)\n"
     "   - JavaScript (SSOT: `hooks/fpm-ask-form-template.js`, Issue68 — `{ANSWER_URL}` 치환 완료본. 아래 블록을 그대로 `<script>` 에 삽입):\n"
     "```js\n" + form_js + "```\n\n"
-    "**2. 저장 + Firefox open**:\n"
+    f"{open_heading}\n"
     "   ```bash\n"
     f"  # path: {ask_path} ({path_note})\n"
-    f"   {open_cmd} \"file://<절대경로>\"\n"
+    f"{open_line}"
     "   ```\n\n"
     "**3. 채팅 안내** (Issue40/Issue60 fallback 의무 — caveman 압축이되 다음 모두 포함):\n"
     "   1. 한 줄 헤드라인: '질문 폼 열림. \"전송\" 클릭 → 자동 회수 대기.'\n"

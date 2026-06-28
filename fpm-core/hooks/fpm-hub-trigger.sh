@@ -339,10 +339,10 @@ auto_kill = os.environ.get('AUTO_KILL', 'false') == 'true'
 
 if not health_ok:
     context = (
-        "## ⚠️ `..board` 트리거 — dashboard-server 미실행\n\n"
+        "## ⚠️ `..board` 트리거 — hub-server 미실행\n\n"
         f"Mode C(dashboard) agent 는 ___pm 서버 (port {server_port}, htm-server daemon) 필수. healthz 실패.\n\n"
         "### 즉시 조치\n"
-        "1. 사용자에게 `/dashboard-server start` 안내 (Issue37 이후 명칭)\n"
+        "1. 사용자에게 `/fpm-hub-server start` 안내 (Issue37 이후 명칭)\n"
         "2. 시작 후 다시 `..board <topic>` 입력 (별칭: `..hub dash` / `..dashboard`)\n\n"
         "본 turn 응답: agent 호출 금지. 채팅으로 서버 미실행 안내만."
     )
@@ -359,8 +359,8 @@ else:
         "   ```\n"
         "   Agent(\n"
         "     description='dashboard 시작',\n"
-        "     subagent_type='dashboard',\n"
-        "     prompt='topic=<TOPIC>; cwd=" + cwd + "; htm-server 활성. tmux pane 에서 runner 시작 + dashboard push. ~/.claude/agents/fpm-dashboard.md 절차 따를 것.'\n"
+        "     subagent_type='fpm-board',\n"
+        "     prompt='topic=<TOPIC>; cwd=" + cwd + "; htm-server 활성. tmux pane 에서 runner 시작 + dashboard push. ~/.claude/agents/fpm-board.md 절차 따를 것.'\n"
         "   )\n"
         "   ```\n"
         "3. agent 반환 결과를 채팅에 그대로 전달 (요약 + stable URL + pane 명령 + 핵심 데이터)\n\n"
@@ -450,7 +450,7 @@ context = (
     "3. 텍스트 bullet 리스트로 선택지를 dump 하지 말 것 — 결정 요청은 반드시 `AskUserQuestion` 호출로 분리.\n\n"
     f"### 서버 전제\n"
     f"- ___pm htm-server (port {server_port}) 상시 운영 전제. 서버 down 시 intercept hook 이 fail-loud "
-    "(`/dashboard-server start` 후 재시도 또는 `..hub stop` 안내).\n\n"
+    "(`/fpm-hub-server start` 후 재시도 또는 `..hub stop` 안내).\n\n"
     "### 채팅 fallback 의무 (Issue60)\n"
     "- 폼 열림 안내 + 질문 텍스트 + 옵션 라벨/desc + 저장 경로 포함 (Firefox 부재 가정, 채팅만으로 답 가능).\n\n"
     "### 모드 관계\n"
@@ -494,21 +494,27 @@ case "$_db" in
   chrome|Chrome)      _app="Google Chrome" ;;
   edge|Edge)          _app="Microsoft Edge" ;;
   safari|Safari)      _app="Safari" ;;
+  none|None|NONE|off) _app="" ;;   # 브라우저 미존재 환경(서버) — open 생략
   *)                  _app="$_db" ;;
 esac
-# browser_focus: false(기본)=백그라운드 open(-g, 포커스 미탈취), true=foreground(포커스 가져감)
-if grep -qE '^[[:space:]]*browser_focus:[[:space:]]*true' "$HUB_SETTING_FILE" 2>/dev/null; then
-  _focus="true"; HTM_OPEN_CMD="open -a \"$_app\""
+if [ -z "$_app" ]; then
+  # default_browser: none — 브라우저 미설치 서버. open 명령 미생성(빈 HTM_OPEN_CMD) → 채팅 URL·file path 만 emit.
+  _focus="false"; HTM_OPEN_CMD=""
 else
-  _focus="false"; HTM_OPEN_CMD="open -g -a \"$_app\""
-fi
-# Issue162: browser_tab_reuse=true & 재사용 가능 브라우저(chrome/edge/safari) → 탭 재사용 helper 로 치환.
-#   match=:9876 origin → /hub 대시보드 + htm-doc?path=… 모든 hub URL 단일 탭. file:// 등 미매칭은 새 탭(폴백 동등).
-_reuse=$(grep -E '^[[:space:]]*browser_tab_reuse:' "$HUB_SETTING_FILE" 2>/dev/null | head -1 | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*#.*$//; s/[[:space:]]*$//')
-_helper="$HOME/_git/___pm/plugins/fpm-core/hooks/fpm-browser-open.sh"
-case "$_app" in "Google Chrome"|"Microsoft Edge"|"Safari") _reusable=1 ;; *) _reusable=0 ;; esac
-if [ "$_reuse" = "true" ] && [ "$_reusable" = "1" ] && [ -f "$_helper" ]; then
-  HTM_OPEN_CMD="bash \"$_helper\" -a \"$_app\" -f \"$_focus\" -r true -m http://127.0.0.1:9876"
+  # browser_focus: false(기본)=백그라운드 open(-g, 포커스 미탈취), true=foreground(포커스 가져감)
+  if grep -qE '^[[:space:]]*browser_focus:[[:space:]]*true' "$HUB_SETTING_FILE" 2>/dev/null; then
+    _focus="true"; HTM_OPEN_CMD="open -a \"$_app\""
+  else
+    _focus="false"; HTM_OPEN_CMD="open -g -a \"$_app\""
+  fi
+  # Issue162: browser_tab_reuse=true & 재사용 가능 브라우저(chrome/edge/safari) → 탭 재사용 helper 로 치환.
+  #   match=:9876 origin → /hub 대시보드 + htm-doc?path=… 모든 hub URL 단일 탭. file:// 등 미매칭은 새 탭(폴백 동등).
+  _reuse=$(grep -E '^[[:space:]]*browser_tab_reuse:' "$HUB_SETTING_FILE" 2>/dev/null | head -1 | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*#.*$//; s/[[:space:]]*$//')
+  _helper="$HOME/_git/___pm/plugins/fpm-core/hooks/fpm-browser-open.sh"
+  case "$_app" in "Google Chrome"|"Microsoft Edge"|"Safari") _reusable=1 ;; *) _reusable=0 ;; esac
+  if [ "$_reuse" = "true" ] && [ "$_reusable" = "1" ] && [ -f "$_helper" ]; then
+    HTM_OPEN_CMD="bash \"$_helper\" -a \"$_app\" -f \"$_focus\" -r true -m http://127.0.0.1:9876"
+  fi
 fi
 
 # Issue141: render_target — ..show/자동 hub 렌더의 출력 경로 분기 (file:// open vs hub 서버 URL).
@@ -576,7 +582,14 @@ render_target = os.environ.get('RENDER_TARGET', 'local-open')
 render_host = os.environ.get('RENDER_HOST', '127.0.0.1')
 render_port = os.environ.get('RENDER_PORT', '9876')
 hub_url = "http://%s:%s/htm-doc?path=<절대경로>" % (render_host, render_port)
-if render_target == 'hub':
+if not open_cmd:
+    # default_browser: none — 브라우저 미존재(서버). open 실행 불가 → render_target 무관 URL·path 만 emit.
+    render_step = (
+        "7. **브라우저 없음 (default_browser: none)** — `open` 실행 **금지**. 채팅 응답에 file path 와 hub URL 만 명시:\n"
+        f"   - `file://<절대경로>` (로컬 file path)\n"
+        f"   - `{hub_url}` (Write 시 `register-doc` 자동 → 원격 접속용)\n"
+    )
+elif render_target == 'hub':
     render_step = (
         "7. **hub 서버 경유 표시 (render_target: hub)** — `file://` open **생략**. 대신 채팅 응답에 아래 URL 명시:\n"
         f"   - `{hub_url}`\n"
@@ -621,7 +634,7 @@ canonical_header = (
     "       onclick=\"event.preventDefault();fetch('http://__HOST__:__PORT__/open-project',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cwd:'__CWD__'})}).then(function(r){return r.json();}).then(function(j){if(j&&j.error)alert('VSCode 열기 실패: '+j.error);}).catch(function(){alert('hub 서버 미응답 — VSCode 열기 실패');});\">📁 __PNAME__</a>\n"
     "    <a class=\"sess-link\" href=\"#\" title=\"클릭 → 이 문서를 만든 세션 탭으로 포커스\"\n"
     "       onclick=\"event.preventDefault();fetch('http://__HOST__:__PORT__/open-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cwd:'__CWD__',sid:'__SID__'})}).then(function(r){return r.json();}).then(function(j){if(j&&j.error)alert('세션 열기 실패: '+j.error);}).catch(function(){alert('hub 서버 미응답 — 세션 열기 실패');});\">🆚 세션</a>\n"
-    "    <a class=\"hub-link\" href=\"http://__HOST__:__PORT__/hub\" target=\"_blank\" title=\"통합 모니터링 Hub\"><img src=\"http://__HOST__:__PORT__/fpm-icon.png\" alt=\"Hub\" style=\"height:1.2em;vertical-align:-0.25em;\"></a>\n"
+    "    <a class=\"hub-link\" href=\"http://__HOST__:__PORT__/hub\" title=\"통합 모니터링 Hub\"><img src=\"http://__HOST__:__PORT__/fpm-icon.png\" alt=\"Hub\" style=\"height:1.2em;vertical-align:-0.25em;\"></a>\n"
     "    <button type=\"button\" onclick=\"window.close()\">닫기 ✕</button>\n"
     "  </nav>\n"
     "</header>\n"
@@ -680,7 +693,7 @@ context = (
     "- hub 모드(`..show`) 활성 중 `AskUserQuestion` 도구는 PreToolUse hook (`fpm-ask-intercept.sh`) 이 자동 deny\n"
     "- deny reason 에 form HTML 생성·Firefox open·fetch POST·inbox polling 절차 포함 — 그 지시를 그대로 따를 것\n"
     "- 회수: 사용자 폼 \"전송\" → fetch POST → server inbox → Claude bash polling → JSON Read·rm → answers 추출 → 흐름 재개\n"
-    "- 서버 down 시: intercept hook 이 fail-loud reason 주입 (`/dashboard-server start` 후 재시도 또는 `..hub stop` 안내). paste-back fallback 없음\n"
+    "- 서버 down 시: intercept hook 이 fail-loud reason 주입 (`/fpm-hub-server start` 후 재시도 또는 `..hub stop` 안내). paste-back fallback 없음\n"
     "- 해제: 사용자가 `..hub stop` 입력 시 플래그 해제 + AskUserQuestion 정상 복귀\n\n"
     "### 실시간 모니터링이 필요할 때 (Mode C)\n"
     "- 장시간 background 모니터링·SSE push 가 필요하면 `..hub dash <topic>` 로 dashboard agent 호출\n"
@@ -756,7 +769,12 @@ render_target = os.environ.get('RENDER_TARGET', 'local-open')
 render_host = os.environ.get('RENDER_HOST', '127.0.0.1')
 render_port = os.environ.get('RENDER_PORT', '9876')
 hub_url = "http://%s:%s/htm-doc?path=<절대경로>" % (render_host, render_port)
-if render_target == 'hub':
+if not open_cmd:
+    # default_browser: none — 브라우저 미존재(서버). open 실행 불가 → URL·path 만 emit.
+    render_step = (
+        f"6. **브라우저 없음 (default_browser: none)** — `open` 실행 금지. 채팅에 `file://<절대경로>` + hub URL `{hub_url}` 만 명시 (Write 시 register-doc 자동)\n"
+    )
+elif render_target == 'hub':
     render_step = (
         f"6. **hub 서버 경유 (render_target: hub)** — `file://` open 생략. 채팅에 URL 명시: `{hub_url}` "
         "(Write 시 `fpm-hub-doc-register` hook 이 자동 `register-doc` → 즉시 유효. 원격·타기기 GUI 단절 회피). ⚠️ `open` 실행 금지\n"
@@ -782,7 +800,7 @@ canonical_header = (
     "       onclick=\"event.preventDefault();fetch('http://__HOST__:__PORT__/open-project',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cwd:'__CWD__'})}).then(function(r){return r.json();}).then(function(j){if(j&&j.error)alert('VSCode 열기 실패: '+j.error);}).catch(function(){alert('hub 서버 미응답 — VSCode 열기 실패');});\">📁 __PNAME__</a>\n"
     "    <a class=\"sess-link\" href=\"#\" title=\"클릭 → 이 문서를 만든 세션 탭으로 포커스\"\n"
     "       onclick=\"event.preventDefault();fetch('http://__HOST__:__PORT__/open-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cwd:'__CWD__',sid:'__SID__'})}).then(function(r){return r.json();}).then(function(j){if(j&&j.error)alert('세션 열기 실패: '+j.error);}).catch(function(){alert('hub 서버 미응답 — 세션 열기 실패');});\">🆚 세션</a>\n"
-    "    <a class=\"hub-link\" href=\"http://__HOST__:__PORT__/hub\" target=\"_blank\" title=\"통합 모니터링 Hub\"><img src=\"http://__HOST__:__PORT__/fpm-icon.png\" alt=\"Hub\" style=\"height:1.2em;vertical-align:-0.25em;\"></a>\n"
+    "    <a class=\"hub-link\" href=\"http://__HOST__:__PORT__/hub\" title=\"통합 모니터링 Hub\"><img src=\"http://__HOST__:__PORT__/fpm-icon.png\" alt=\"Hub\" style=\"height:1.2em;vertical-align:-0.25em;\"></a>\n"
     "    <button type=\"button\" onclick=\"window.close()\">닫기 ✕</button>\n"
     "  </nav>\n"
     "</header>\n"

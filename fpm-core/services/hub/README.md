@@ -1,6 +1,6 @@
 ---
 name: README
-description: "___pm 소유 htm-server (단일 공유 daemon, 역할: dashboard agent 백엔드) 운영 가이드"
+description: ___pm 소유 htm-server (단일 공유 daemon, 역할: dashboard agent 백엔드) 운영 가이드
 date: 2026-05-19
 ---
 
