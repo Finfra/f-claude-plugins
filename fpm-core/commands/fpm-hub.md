@@ -284,7 +284,7 @@ ex)
             2. 일치 행의 `peacock.color` 컬럼 hex 값 사용 (ex: `#f0d5cc` for `~/.claude`)
             3. 일치 행이 없으면 fallback `hsl(hue, 60%, 45%)` (hue = cwd md5 hash 앞 4자 % 360)
         * peacock.color 는 파스텔 톤이므로 헤더 텍스트 색은 `#1a1a1a` (어두운 글자) 사용. 닫기 버튼도 `background: rgba(0,0,0,0.08); color: #1a1a1a; border: 1px solid rgba(0,0,0,0.15)` 등 어두운 글자 대비로 설정
-        * **⚠️ CANONICAL 헤더 블록 (Issue132) — 아래 HTML·CSS 를 verbatim 복붙하고 placeholder 2개만 치환**. 즉흥 재작성 금지 (정적 `<span>`·순서 뒤바뀜·헤더 밖 overflow 재발 원인). 치환: `{프로젝트명}`(ex `.claude`) · `{cwd 절대경로}`(ex `$HOME/.claude`, Projects.md 등록 경로와 정확히 일치해야 서버 화이트리스트 통과) · `{session_id}`(🆚 세션 버튼 — 현재 세션 ID. hook 경유 시 자동 임베드, 수동 작성 시 hook 입력 `session_id`. 부재 시 cwd_hash fallback → 워크스페이스만 open). `{제목}` 만 콘텐츠별로 채움. 색은 아래 `:root --project-color` (위 PROJECT_COLOR 규칙) 가 결정.
+        * **⚠️ CANONICAL 헤더 블록 (Issue132) — 아래 HTML·CSS 를 verbatim 복붙하고 placeholder 2개만 치환**. 즉흥 재작성 금지 (정적 `<span>`·순서 뒤바뀜·헤더 밖 overflow 재발 원인). 치환: `{프로젝트명}`(ex `.claude`) · `{cwd 절대경로}`(ex `/Users/nowage/.claude`, Projects.md 등록 경로와 정확히 일치해야 서버 화이트리스트 통과) · `{session_id}`(🆚 세션 버튼 — 현재 세션 ID. hook 경유 시 자동 임베드, 수동 작성 시 hook 입력 `session_id`. 부재 시 cwd_hash fallback → 워크스페이스만 open). `{제목}` 만 콘텐츠별로 채움. 색은 아래 `:root --project-color` (위 PROJECT_COLOR 규칙) 가 결정.
             ```html
             <header>
               <h1>{제목}</h1>

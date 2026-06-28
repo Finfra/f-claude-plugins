@@ -4,7 +4,7 @@ description: 프로젝트 타입별 초기화 (스킬 wrapper)
 date: 2026-04-11
 ---
 
-Read the skill file at `$HOME/_git/___pm/.claude/skills/new-project/SKILL.md` and follow its instructions with the following arguments: $ARGUMENTS
+Read the skill file at `/Users/nowage/_git/___pm/.claude/skills/new-project/SKILL.md` and follow its instructions with the following arguments: $ARGUMENTS
 
 If no arguments are provided, display the usage and stop:
 
