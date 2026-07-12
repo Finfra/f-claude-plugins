@@ -1,7 +1,7 @@
 # Issue Management
 
 * Issue HWM: 7
-* Save Point: 02d1026 (2026-03-19)
+* Update checkpoint: 02d1026 (2026-03-19)
 
 ---
 
