@@ -1,7 +1,7 @@
 # Issue Management
 
 * Issue HWM: 7
-* Update checkpoint: 02d1026 (2026-03-19)
+* Checkpoints: 02d1026 (2026-03-19)
 
 ---
 
