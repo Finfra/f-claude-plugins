@@ -18,7 +18,7 @@
   "mcpServers": {
     "fqrgen": {
       "command": "node",
-      "args": ["./mcp-server.js"]
+      "args": ["/Users/nowage/_git/__all/f-claude-plugins/fQRGen/mcp-server.js"]
     }
   }
 }

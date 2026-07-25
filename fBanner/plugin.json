@@ -20,7 +20,7 @@
   "mcpServers": {
     "fbanner": {
       "command": "node",
-      "args": ["./mcp-server.js"]
+      "args": ["/Users/nowage/_git/__all/f-claude-plugins/fBanner/mcp-server.js"]
     }
   }
 }
