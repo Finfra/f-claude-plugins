@@ -1,7 +1,7 @@
 {
   "name": "fwarrange",
-  "version": "1.0.0",
-  "description": "Save and restore macOS window layouts via fWarrange REST API",
+  "version": "1.1.0",
+  "description": "Save/restore macOS window layouts, manage context modes, and configure the fWarrange helper via REST API",
   "author": {
     "name": "nowage",
     "url": "https://github.com/nowage"
@@ -15,5 +15,11 @@
     "save",
     "restore",
     "macos"
-  ]
+  ],
+  "mcpServers": {
+    "fwarrange": {
+      "command": "node",
+      "args": ["./mcp-server.js"]
+    }
+  }
 }

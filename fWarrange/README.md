@@ -41,21 +41,31 @@ Save and restore macOS window positions and sizes via the fWarrange REST API.
 /fwarrange:fwarrange windows
 /fwarrange:fwarrange apps
 /fwarrange:fwarrange status
+/fwarrange:fwarrange modes
+/fwarrange:fwarrange mode-create coding
+/fwarrange:fwarrange mode-activate coding
+/fwarrange:fwarrange cli status
+/fwarrange:fwarrange settings general
+/fwarrange:fwarrange excluded-apps
+/fwarrange:fwarrange default-layout my-workspace
+/fwarrange:fwarrange normalize-rules
+/fwarrange:fwarrange restore-stats
 /fwarrange:fwarrange locale
 /fwarrange:fwarrange locale --set=en
 ```
 
 **Features:**
-* Guides user to launch fWarrange.app if server is not running
+* Guides user to launch the fWarrangeCli helper if the server is not running
 * Capture current window layout with optional name and app filter
-* Restore saved layouts with customizable retry settings
-* List all saved layouts with metadata
-* Get detailed layout information (window positions, sizes)
-* Rename and delete layouts
-* Delete all layouts (with safety confirmation)
+* Restore saved layouts with customizable retry settings and matching mode (strict/normal/loose)
+* List, detail, rename, and delete layouts (delete-all with safety confirmation)
 * Remove specific windows from a layout by ID
-* View current windows and running apps
-* Check accessibility permission status
+* View current windows and running apps; check accessibility permission status
+* **Modes**: context switching — bundle a layout with required apps, activate to restore + launch
+* **CLI helper management**: status, version, pause/resume, restart, quit
+* **Settings**: read/update general, restore, api, advanced tabs; factory reset
+* Manage restore-excluded apps and the default layout
+* **Advanced tuning**: title-normalization ruleset and window-matching statistics
 * Get and change app locale/language
 
 **Options:**
@@ -66,26 +76,24 @@ Save and restore macOS window positions and sizes via the fWarrange REST API.
 | `--server=<url>`    | Change server address | `http://localhost:3016` |
 | `--set=<code>`      | Set locale language   | -                       |
 
-**API Summary (14 Endpoints):**
+**API Summary (Service root: `http://localhost:3016/api/v2`):**
 
-| Method | Endpoint                                | Description                  |
-| ------ | --------------------------------------- | ---------------------------- |
-| GET    | `/`                                     | Health check                 |
-| GET    | `/api/v1/layouts`                       | List all layouts             |
-| DELETE | `/api/v1/layouts`                       | Delete all layouts (*)       |
-| GET    | `/api/v1/layouts/{name}`                | Get layout details           |
-| PUT    | `/api/v1/layouts/{name}`                | Rename a layout              |
-| DELETE | `/api/v1/layouts/{name}`                | Delete a layout              |
-| POST   | `/api/v1/capture`                       | Capture current layout       |
-| POST   | `/api/v1/layouts/{name}/restore`        | Restore a layout             |
-| POST   | `/api/v1/layouts/{name}/windows/remove` | Remove specific windows      |
-| GET    | `/api/v1/windows/current`               | List current windows         |
-| GET    | `/api/v1/windows/apps`                  | List running apps            |
-| GET    | `/api/v1/status/accessibility`          | Check permissions            |
-| GET    | `/api/v1/locale`                        | Get locale setting           |
-| PUT    | `/api/v1/locale`                        | Change locale setting        |
+The plugin documents the user-facing and management endpoints below. The full v2 surface is 57 endpoints — machine-to-machine ones (`/paidapp/*`, `/ui/state`, `/operations`, `/changes`, `/shutdown`, `/settings/shortcuts`) are omitted here; see `api/openapi_v2.yaml` for the complete spec.
 
-(*) Requires `X-Confirm-Delete-All: true` header.
+| Group         | Endpoints                                                                                          |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| Health        | `GET /` · `GET /api/v2/health`                                                                     |
+| Layouts       | `GET/DELETE /layouts` · `GET/PUT/DELETE /layouts/{name}` · `POST /layouts/{name}/windows/remove`   |
+| Capture/Restore | `POST /capture` · `POST /layouts/{name}/restore` (+ matching mode strict/normal/loose)           |
+| Windows       | `GET /windows/current` · `GET /windows/apps` · `GET /status/accessibility`                         |
+| Modes         | `GET/POST /modes` · `GET/PATCH/DELETE /modes/{name}` · `POST /modes/{name}/activate`               |
+| CLI helper    | `GET /cli/status` · `GET /cli/version` · `POST /cli/pause·resume·restart·quit`                     |
+| Settings      | `GET/PATCH /settings/general·restore·api·advanced` · `GET /settings` · `POST /settings/factory-reset` |
+| Excluded apps | `GET/POST/DELETE/PUT /settings/restore/excluded-apps` · `POST .../reset`                           |
+| Default layout| `GET/PUT /settings/default-layout`                                                                 |
+| Advanced      | `GET/PUT/DELETE /normalize-rules` · `GET/DELETE /restore-stats`                                    |
+
+Destructive endpoints (delete-all, cli quit, factory-reset) require user confirmation; delete-all also needs the `X-Confirm-Delete-All: true` header.
 
 ---
 
@@ -119,16 +127,16 @@ ln -sf fWarrange/skills/fwarrange .claude/skills/fwarrange
 
 # Prerequisites
 
-The fWarrange REST API server must be running:
+The fWarrange REST API server is provided by the **fWarrangeCli** helper — a non-sandboxed macOS agent distributed via Homebrew (not the App Store GUI app):
 
-| Server           | How to Run                                        |
-| ---------------- | ------------------------------------------------- |
-| macOS Native App | Launch fWarrange.app (REST API is disabled by default. Enable it in Settings > API tab) |
+| Server         | How to Run                                                                                                          |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `fWarrangeCli` | `brew install finfra/tap/fwarrange-cli` → `brew services start finfra/tap/fwarrange-cli` (REST enabled by default) |
 
-> If the server is not running, the skill will prompt the user to launch fWarrange.app.
+> If the server is not running, the skill will prompt the user to start it via Homebrew. It will not start the server automatically.
 
 **macOS Accessibility Permission** is required for window restore functionality:
-* System Settings > Privacy & Security > Accessibility > Add fWarrange.app
+* System Settings > Privacy & Security > Accessibility > Add fWarrangeCli
 
 ---
 

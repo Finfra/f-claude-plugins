@@ -14,5 +14,11 @@
     "clipboard",
     "abbreviation",
     "macos"
-  ]
+  ],
+  "mcpServers": {
+    "fsnippet": {
+      "command": "node",
+      "args": ["./mcp-server.js"]
+    }
+  }
 }

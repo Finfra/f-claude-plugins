@@ -16,5 +16,11 @@
     "split",
     "tiles",
     "macos"
-  ]
+  ],
+  "mcpServers": {
+    "fbanner": {
+      "command": "node",
+      "args": ["./mcp-server.js"]
+    }
+  }
 }

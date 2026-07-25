@@ -14,5 +14,11 @@
     "generator",
     "url",
     "macos"
-  ]
+  ],
+  "mcpServers": {
+    "fqrgen": {
+      "command": "node",
+      "args": ["./mcp-server.js"]
+    }
+  }
 }

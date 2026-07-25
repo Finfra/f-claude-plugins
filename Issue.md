@@ -1,6 +1,6 @@
 # Issue Management
 
-* Issue HWM: 7
+* Issue HWM: 8
 * Checkpoints: 02d1026 (2026-03-19)
 
 ---
@@ -10,6 +10,8 @@
 ---
 
 ## 🌱 이슈후보
+
+1. `_doc_arch/`·`Issue.md` gitignore 정책 재검토 — public remote(Finfra) repo 라 내부 설계문서를 강제 추적할 수 없음. 설계문서를 어디에 영속 보관할지(별도 private repo / obsidian / _doc_base) 결정 필요. (prj1#Issue307 fan-out 중 발견)
 
 ---
 
@@ -32,6 +34,16 @@
 ---
 
 ## ✅ 완료
+
+### Issue8. _doc_arch 초기 설계문서 스켈레톤 작성 (등록: 2026-07-21, 해결: 2026-07-21, commit: N/A — gitignore 대상이라 커밋 불가) ✅
+* 목적: 비어 있던 `_doc_arch/` 에 소스코드 기반 초기 설계문서 작성 (prj1#Issue307 fan-out, 방법론 원본 prj1#Issue306)
+* 구현 명세:
+    - `_doc_arch/architecture-overview.md` — 레포 구조·마켓플레이스(7 플러그인)·포트 할당(3011~3016)
+    - `_doc_arch/plugin-skill-pattern.md` — 6개 f-app 공통 REST API 스킬 패턴 + 플러그인별 엔드포인트
+    - `_doc_arch/fpm-core.md` — 번들 SCAR 스택(hub/dashboard/pm) 구조
+    - 실제 확인 파일(marketplace.json·각 plugin.json·각 SKILL.md·fpm-core 트리·hooks.json)만 근거, 미확인분은 [TODO]/[FIXME] 마커
+* 종결 사유(hash 없음): `_doc_arch/`·`Issue.md` 가 이 repo 의 `.gitignore` 대상 + origin=public(Finfra) → 강제추적·gitignore 수정 금지 지침에 따라 commit 없이 종결
+* 후속: gitignore 정책 재검토는 이슈후보로만 등록(이번 작업 미처리)
 
 ### Issue7. fQRGen 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: fe011c0) ✅
 * 목적: fQRGen Claude Code 플러그인을 f-claude-plugins 레포로 통합

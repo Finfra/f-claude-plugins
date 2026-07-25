@@ -41,21 +41,31 @@ fWarrange REST API를 통해 macOS 창의 위치와 크기를 저장하고 복�
 /fwarrange:fwarrange windows
 /fwarrange:fwarrange apps
 /fwarrange:fwarrange status
+/fwarrange:fwarrange modes
+/fwarrange:fwarrange mode-create coding
+/fwarrange:fwarrange mode-activate coding
+/fwarrange:fwarrange cli status
+/fwarrange:fwarrange settings general
+/fwarrange:fwarrange excluded-apps
+/fwarrange:fwarrange default-layout my-workspace
+/fwarrange:fwarrange normalize-rules
+/fwarrange:fwarrange restore-stats
 /fwarrange:fwarrange locale
 /fwarrange:fwarrange locale --set=en
 ```
 
 **주요 기능:**
-* 서버 미실행 시 fWarrange.app 실행 안내
+* 서버 미실행 시 fWarrangeCli 헬퍼(Homebrew) 실행 안내
 * 현재 창 레이아웃 캡처 (이름 지정 및 앱 필터링 가능)
-* 커스텀 재시도 설정으로 저장된 레이아웃 복구
-* 메타데이터 포함 전체 레이아웃 목록 조회
-* 레이아웃 상세 정보 조회 (창 위치, 크기)
-* 레이아웃 이름 변경 및 삭제
-* 전체 레이아웃 삭제 (안전 확인 헤더 필요)
+* 재시도·매칭 모드(strict/normal/loose) 설정으로 저장된 레이아웃 복구
+* 레이아웃 목록·상세 조회, 이름 변경, 삭제 (전체 삭제는 안전 확인)
 * 레이아웃에서 특정 창 ID로 제거
-* 현재 창 및 실행 중인 앱 조회
-* 접근성 권한 상태 확인
+* 현재 창·실행 중인 앱 조회, 접근성 권한 상태 확인
+* **모드(Modes)**: 컨텍스트 전환 — 레이아웃 + 필요 앱 묶음을 활성화 시 복구·실행
+* **CLI 헬퍼 관리**: status, version, pause/resume, restart, quit
+* **설정(Settings)**: general·restore·api·advanced 탭 조회/변경, 공장 초기화
+* 복구 제외 앱 목록·기본 레이아웃 관리
+* **고급 튜닝**: 타이틀 정규화 룰셋, 창 매칭 누적 통계
 * 앱 언어(locale) 조회 및 변경
 
 **옵션:**
@@ -66,26 +76,24 @@ fWarrange REST API를 통해 macOS 창의 위치와 크기를 저장하고 복�
 | `--server=<주소>`   | 서버 주소 변경  | `http://localhost:3016` |
 | `--set=<코드>`      | 언어 코드 설정  | -                       |
 
-**API 요약 (14개 엔드포인트):**
+**API 요약 (서비스 루트: `http://localhost:3016/api/v2`):**
 
-| 메서드 | 엔드포인트                                | 설명                     |
-| ------ | ----------------------------------------- | ------------------------ |
-| GET    | `/`                                       | 서버 상태 확인           |
-| GET    | `/api/v1/layouts`                         | 레이아웃 목록 조회       |
-| DELETE | `/api/v1/layouts`                         | 전체 레이아웃 삭제 (*)   |
-| GET    | `/api/v1/layouts/{name}`                  | 레이아웃 상세 조회       |
-| PUT    | `/api/v1/layouts/{name}`                  | 레이아웃 이름 변경       |
-| DELETE | `/api/v1/layouts/{name}`                  | 레이아웃 삭제            |
-| POST   | `/api/v1/capture`                         | 현재 레이아웃 캡처       |
-| POST   | `/api/v1/layouts/{name}/restore`          | 레이아웃 복구            |
-| POST   | `/api/v1/layouts/{name}/windows/remove`   | 특정 창 제거             |
-| GET    | `/api/v1/windows/current`                 | 현재 창 목록             |
-| GET    | `/api/v1/windows/apps`                    | 실행 중인 앱 목록        |
-| GET    | `/api/v1/status/accessibility`            | 접근성 권한 확인         |
-| GET    | `/api/v1/locale`                          | 언어 설정 조회           |
-| PUT    | `/api/v1/locale`                          | 언어 설정 변경           |
+플러그인은 아래의 사용자·관리 엔드포인트를 문서화합니다. 전체 v2 표면은 57개이며, 머신간 통신용(`/paidapp/*`, `/ui/state`, `/operations`, `/changes`, `/shutdown`, `/settings/shortcuts`)은 제외했습니다. 전체 스펙은 `api/openapi_v2.yaml` 참조.
 
-(*) `X-Confirm-Delete-All: true` 헤더 필요.
+| 그룹          | 엔드포인트                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| Health        | `GET /` · `GET /api/v2/health`                                                                     |
+| Layouts       | `GET/DELETE /layouts` · `GET/PUT/DELETE /layouts/{name}` · `POST /layouts/{name}/windows/remove`   |
+| 캡처/복구     | `POST /capture` · `POST /layouts/{name}/restore` (+ 매칭 모드 strict/normal/loose)                 |
+| Windows       | `GET /windows/current` · `GET /windows/apps` · `GET /status/accessibility`                         |
+| Modes         | `GET/POST /modes` · `GET/PATCH/DELETE /modes/{name}` · `POST /modes/{name}/activate`               |
+| CLI 헬퍼      | `GET /cli/status` · `GET /cli/version` · `POST /cli/pause·resume·restart·quit`                     |
+| Settings      | `GET/PATCH /settings/general·restore·api·advanced` · `GET /settings` · `POST /settings/factory-reset` |
+| 제외 앱       | `GET/POST/DELETE/PUT /settings/restore/excluded-apps` · `POST .../reset`                           |
+| 기본 레이아웃 | `GET/PUT /settings/default-layout`                                                                 |
+| 고급          | `GET/PUT/DELETE /normalize-rules` · `GET/DELETE /restore-stats`                                    |
+
+파괴적 엔드포인트(전체 삭제, cli quit, 공장 초기화)는 사용자 확인이 필요하며, 전체 삭제는 `X-Confirm-Delete-All: true` 헤더도 필요합니다.
 
 ---
 
@@ -119,16 +127,16 @@ ln -sf fWarrange/skills/fwarrange .claude/skills/fwarrange
 
 # 전제 조건
 
-fWarrange REST API 서버가 실행 중이어야 합니다:
+fWarrange REST API 서버는 **fWarrangeCli** 헬퍼(Homebrew로 배포되는 비샌드박스 macOS 에이전트, App Store GUI 앱 아님)가 제공합니다:
 
-| 서버              | 실행 방법                                      |
-| ----------------- | ---------------------------------------------- |
-| macOS 네이티브 앱 | fWarrange.app 실행 (REST API는 기본 비활성. 설정 > API 탭에서 활성화) |
+| 서버           | 실행 방법                                                                                                          |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `fWarrangeCli` | `brew install finfra/tap/fwarrange-cli` → `brew services start finfra/tap/fwarrange-cli` (REST 기본 활성)          |
 
-> 서버가 꺼져 있으면 스킬이 사용자에게 fWarrange.app 실행을 안내합니다.
+> 서버가 꺼져 있으면 스킬이 Homebrew 실행 명령을 안내합니다. 서버를 자동으로 시작하지는 않습니다.
 
 **macOS 접근성 권한**이 창 복구 기능에 필요합니다:
-* 시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용 > fWarrange.app 추가
+* 시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용 > fWarrangeCli 추가
 
 ---
 

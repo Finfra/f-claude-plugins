@@ -1,6 +1,6 @@
 {
   "name": "fboard",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Control fBoard whiteboard app via REST API - window, background, presets",
   "author": {
     "name": "nowage",
@@ -15,5 +15,11 @@
     "gradient",
     "presets",
     "macos"
-  ]
+  ],
+  "mcpServers": {
+    "fboard": {
+      "command": "node",
+      "args": ["./mcp-server.js"]
+    }
+  }
 }

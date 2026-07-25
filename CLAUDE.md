@@ -17,7 +17,7 @@ f-claude-plugins/
 ├── .claude-plugin/
 │   └── marketplace.json      # 마켓플레이스 레지스트리
 ├── fBanner/                  # 이미지/PDF/SVG 격자 타일 분할 (Port: 3011)
-├── fBoard/                   # 화이트보드 앱 제어 (Port: -)
+├── fBoard/                   # 화이트보드 앱 제어 (Port: 3012)
 ├── fGoogleSheet/             # Google Sheets 데이터 관리 (Port: 3013)
 ├── fQRGen/                   # QR 코드 생성 (Port: 3014)
 ├── fSnippet/                 # 텍스트 스니펫 관리 (Port: 3015)
@@ -37,7 +37,7 @@ f-claude-plugins/
 | Plugin       | App              | Port | Description                       |
 | :----------- | :--------------- | :--- | :-------------------------------- |
 | fBanner      | fBanner.app      | 3011 | 이미지/PDF/SVG를 격자 타일로 분할 |
-| fBoard       | fBoard.app       | -    | 화이트보드 앱 제어                |
+| fBoard       | fBoard.app       | 3012 | 화이트보드 앱 제어                |
 | fGoogleSheet | fGoogleSheet.app | 3013 | Google Sheets 데이터 관리         |
 | fQRGen       | fQRGen.app       | 3014 | QR 코드 생성                      |
 | fSnippet     | fSnippet.app     | 3015 | 텍스트 스니펫 관리                |

@@ -1,7 +1,7 @@
 ---
 title: fGoogleSheet Claude Code Plugin (한국어)
 description: fGoogleSheet REST API를 통해 Google Sheets 데이터를 관리하는 Claude Code 플러그인
-date: 2026-03-26
+date: 2026-06-20
 ---
 
 fGoogleSheet REST API를 통해 Google Sheets 데이터를 관리하는 Claude Code 플러그인입니다.
@@ -29,13 +29,17 @@ fGoogleSheet REST API를 통해 Google Sheets 데이터를 관리합니다 (Key/
 **사용 예시:**
 ```
 /fgooglesheet:fgooglesheet Docker란? 컨테이너 가상화 플랫폼
+/fgooglesheet:fgooglesheet --set-fields Docker란? 컨테이너 가상화 플랫폼
+/fgooglesheet:fgooglesheet --clear-range=Sheet1!A12:B15
 /fgooglesheet:fgooglesheet --unanswered
 /fgooglesheet:fgooglesheet --status
 /fgooglesheet:fgooglesheet --next-row
 ```
 
 **주요 기능:**
-* Key/Value 데이터를 Google Sheets에 추가
+* Key/Value 데이터를 Google Sheets에 추가 (업로드 + 실행)
+* 업로드 없이 앱 입력 필드만 설정
+* 셀 범위 비우기 (API / Playwright 모드)
 * 미답변 질문 조회 (A열은 있고 B열이 비어있는 행)
 * 앱 상태 조회 (실행 상태, 인증, 시트 정보)
 * 다음 빈 행 찾기
@@ -43,22 +47,26 @@ fGoogleSheet REST API를 통해 Google Sheets 데이터를 관리합니다 (Key/
 
 **옵션:**
 
-| 옵션              | 설명              | 기본값                  |
-| ----------------- | ----------------- | ----------------------- |
-| `--unanswered`    | 미답변 질문 조회  | -                       |
-| `--status`        | 앱 상태 조회      | -                       |
-| `--next-row`      | 다음 빈 행 찾기   | -                       |
-| `--server=<주소>` | 서버 주소 변경    | `http://localhost:3013` |
+| 옵션                   | 설명                          | 기본값                  |
+| ---------------------- | ----------------------------- | ----------------------- |
+| `--set-fields`         | 업로드 없이 입력 필드만 설정  | -                       |
+| `--clear-range=<범위>` | A1 범위 셀 비우기             | -                       |
+| `--unanswered`         | 미답변 질문 조회              | -                       |
+| `--status`             | 앱 상태 조회                  | -                       |
+| `--next-row`           | 다음 빈 행 찾기               | -                       |
+| `--server=<주소>`      | 서버 주소 변경                | `http://localhost:3013` |
 
 **API 요약:**
 
-| 엔드포인트            | 메서드 | 설명                                |
-| --------------------- | ------ | ----------------------------------- |
-| `GET /`               | GET    | 서버 상태 확인 (Health Check)       |
-| `POST /api/add-line`  | POST   | Key/Value 데이터 Google Sheets 추가 |
-| `GET /api/unanswered` | GET    | 미답변 질문 조회                    |
-| `GET /api/status`     | GET    | 앱 상태 조회                        |
-| `GET /api/next-row`   | GET    | 다음 빈 행 찾기                     |
+| 엔드포인트               | 메서드 | 설명                                  |
+| ------------------------ | ------ | ------------------------------------- |
+| `GET /`                  | GET    | 서버 상태 확인 (Health Check)         |
+| `POST /api/add-line`     | POST   | Key/Value 데이터 Google Sheets 추가   |
+| `POST /api/set-fields`   | POST   | 입력 필드만 설정 (업로드 안 함)       |
+| `POST /api/clear-range`  | POST   | 셀 범위 비우기 (`?range=A1:B2`)       |
+| `GET /api/unanswered`    | GET    | 미답변 질문 조회                      |
+| `GET /api/status`        | GET    | 앱 상태 조회                          |
+| `GET /api/next-row`      | GET    | 다음 빈 행 찾기                       |
 
 ---
 

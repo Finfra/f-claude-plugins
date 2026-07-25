@@ -3,7 +3,7 @@ name: fboard
 description: "Control fBoard whiteboard app via REST API"
 argument-hint: "[command] [options]"
 title: fBoard Whiteboard Control
-date: 2026-03-26
+date: 2026-06-20
 ---
 
 Control the fBoard whiteboard app (window, background, presets) via the fBoard REST API.
@@ -99,13 +99,44 @@ curl -s -X POST http://localhost:3012/api/background/color \
   -d '{"color":"#FF5733"}'
 ```
 
+## Background Image
+
+`fillMode` values: `fit` | `fill` (default) | `stretch` | `tile`.
+
+The app runs sandboxed, so three input modes are supported:
+
+```bash
+# 1) multipart upload (recommended — sandbox safe)
+curl -s -X POST http://localhost:3012/api/background/image \
+  -F 'file=@/path/to/image.png' \
+  -F 'fillMode=fill'
+
+# 2) base64 JSON (sandbox safe, no file access needed)
+curl -s -X POST http://localhost:3012/api/background/image \
+  -H 'Content-Type: application/json' \
+  -d "{\"data\":\"$(base64 -i /path/to/image.png)\",\"filename\":\"bg.png\",\"fillMode\":\"fill\"}"
+
+# 3) path (file path readable by the app container)
+curl -s -X POST http://localhost:3012/api/background/image \
+  -H 'Content-Type: application/json' \
+  -d '{"path":"/path/to/image.png","fillMode":"fit"}'
+
+# Change fill mode of current image
+curl -s -X POST http://localhost:3012/api/background/fill-mode \
+  -H 'Content-Type: application/json' \
+  -d '{"fillMode":"tile"}'
+
+# Remove background image (revert to solid color)
+curl -s -X DELETE http://localhost:3012/api/background/image
+```
+
 ## Window Control
 
 ```bash
 # Center window
 curl -s -X POST http://localhost:3012/api/window/center
 
-# Set window level (normal / floating / background)
+# Set window level — values: normal | floating | background
 curl -s -X POST http://localhost:3012/api/window/level \
   -H 'Content-Type: application/json' \
   -d '{"level":"floating"}'
@@ -129,6 +160,8 @@ curl -s -X POST http://localhost:3012/api/presets/apply \
 ```
 
 ## Gradient
+
+`direction` values: `topToBottom` (default) | `bottomToTop` | `leftToRight` | `topLeftToBottomRight` | `topRightToBottomLeft`.
 
 ```bash
 # Set gradient background
