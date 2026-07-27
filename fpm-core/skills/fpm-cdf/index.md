@@ -1,5 +1,5 @@
 ---
-title: fpm-cdf
+title: cdf
 description: "pm tmux 세션의 window/pane을 생성·관리함. @N 윈도우 인덱스, :NAME 윈도우 이름, projects/ 번호로 pane 구성. 완료 후 WIN_NAME 출력."
 date: 2026-04-18
 ---
@@ -10,7 +10,7 @@ date: 2026-04-18
 
 ## cdft 우선 호출 규칙
 
-`~/.zsh_functions`에 `cdft()` 함수가 존재함. **query 모드를 제외한 모든 모드**(setup, send, list, kill, capture)는 `cdft`를 bash에서 직접 실행하여 처리할 것.
+`sh/fpm_function.sh`(부트스트랩 `sh/fpm.sh` 가 source)에 `cdft()` 함수가 존재함. **query 모드를 제외한 모든 모드**(setup, send, list, kill, capture)는 `cdft`를 bash에서 직접 실행하여 처리할 것.
 
 ```bash
 # query 모드 판별
