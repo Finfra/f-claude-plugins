@@ -6,7 +6,7 @@
 
 | 분류 | 항목 |
 | :--- | :--- |
-| Commands | `fpm-hub`, `fpm-board`, `fpm-hub-server` (구 `fpm-board-server`, deprecated alias 잔존), `fpm-pm-new`, `fpm-pm-del`, `fpm-pm-update`, `fpm-pm-query`, `fpm-pm-do`, `fpm-cdf`, `fpm-issue-map` |
+| Commands | `fpm-hub`, `fpm-board`, `fpm-hub-server` (구 `fpm-board-server`, deprecated alias 잔존), `fpm-pm-new`, `fpm-pm-del`, `fpm-pm-update`, `fpm-pm-query`, `fpm-do`, `fpm-cdf`, `fpm-issue-map` |
 | Skills | `fpm-pm`, `fpm-cdf`, `fpm-issue-map` |
 | Agents | `fpm-board` (+ runner/supervisor/queue-runner) |
 | Hooks | `fpm-hub-trigger`, `fpm-ask-intercept`, `fpm-ask-marker-detect`, `fpm-ask-question-guard`, `fpm-board-notify`, `fpm-hub-session-{register,end,topic}`, `fpm-hub-doc-register` |
