@@ -7,6 +7,14 @@ date: 2026-04-17
 # 개요
 * Claude 플러그인 저장소 (Projects.md id=20)
 
+# ToProcess
+
+정리 전 초기 메모를 여기에 쌓고, 정리되면 아래 정식 섹션으로 옮긴다.
+
+```
+
+```
+
 # Source Code
 ## Public Repository
 
