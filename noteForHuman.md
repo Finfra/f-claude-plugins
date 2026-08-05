@@ -7,6 +7,13 @@ date: 2026-04-17
 # 개요
 * Claude 플러그인 저장소 (Projects.md id=20)
 
+## 🔀 현재 작업중 브랜치 — `prj1-issue353-marketplace` (main 아님, 2026.08.05)
+
+> prj1 의 hub 서버 다운 자동 강등(Issue355/340) 배포분 **수신 전용** 브랜치. **prj1·3·7·20 네 repo 가 한 덩어리.**
+> ⚠️ `fpm-core/` 를 손으로 고치지 말 것 — `fpm-sync publish` 가 rsync vendor 하는 생성물이다.
+> 📖 순서·검증·함정 SSOT: `~/_git/___pm/noteForHuman.md`. 상세는 이 문서 맨 끝 절.
+> ⚠️ 머징 완료 시 이 절과 맨 끝 절을 함께 삭제.
+
 # ToProcess
 
 정리 전 초기 메모를 여기에 쌓고, 정리되면 아래 정식 섹션으로 옮긴다.
