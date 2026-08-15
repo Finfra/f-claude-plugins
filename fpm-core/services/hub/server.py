@@ -25,6 +25,7 @@ import re
 import mimetypes
 import tempfile
 import socket
+import sqlite3  # Issue360: Zed 로컬 db(sidebar_threads.archived) 조회 — 스레드 닫힘 판정
 import ipaddress
 import threading
 from collections import deque
@@ -38,6 +39,9 @@ from spa_form import FORM_JS  # noqa: E402
 from spa_widgets import WIDGET_JS  # noqa: E402
 from spa_board import DASHBOARD_JS  # noqa: E402
 import i18n  # noqa: E402  # Issue169: hub UI 다국어 catalog + t(key, lang)
+import md_shell  # noqa: E402  # Issue353_1: md-first 셸 렌더 단일 템플릿 (M2 라이브 셸과 공유)
+import mailbox  # noqa: E402  # Issue353_2: transcript tail → 세션 메일박스 (pull 스트리밍)
+import render_gate  # noqa: E402  # Issue353_3: 적응형 렌더 게이트 (서버 기계 판정)
 
 # Issue141: 기본 127.0.0.1(루프백 전용=외부 차단). 옵트인 개방 우선순위:
 #   env HTM_SERVER_HOST > hub_setting.yml bind_host > 기본 "127.0.0.1".
@@ -61,6 +65,14 @@ ALLOWLIST_READY = True  # 개방 모드 진입 시 main() 에서 False 로 내�
 # ALLOW_ALL 은 더 이상 토글되지 않음(항상 False) — _ip_allowed 호환용 잔존.
 ALLOW_ALL = False
 
+# Issue379: 수신 이름(Host 헤더) 게이트 — source-IP 게이트(_ip_allowed)의 짝.
+#   _ip_allowed 는 "어디서 왔는가"만 보고 "어느 이름으로 불렸는가"를 안 본다. 그래서
+#   브라우저를 경유하는 DNS rebinding(외부 도메인을 127.0.0.1 로 rebind)은 src 가 루프백이라
+#   그대로 통과했다. 수신 이름을 known 집합으로 제한해 그 표면을 닫는다.
+#   KNOWN_HOSTS 는 main() 에서 1회 산출(순수 문자열 조립, DNS 불요) — 변경 시 restart.
+KNOWN_HOSTS = frozenset()  # 공집합이면 게이트 비활성(fail-open) — 설정 사고가 hub 를 죽이지 않게
+HOST_GATE = True           # yml host_gate. false 면 종전 동작(전 이름 허용)
+
 STATE_DIR = "/tmp/___pm/claude-htm-server"
 INBOX_ROOT = "/tmp/___pm/claude-htm-inbox"
 TMP_OUT_DIR = "/tmp/___pm"  # dashboard agent OUT_DIR fallback (htm 폴더 부재 시)
@@ -80,11 +92,14 @@ def _htm_dirs_for(cwd: str) -> list:
 
 def _htm_output_stem(name: str) -> str:
     """Issue311: htm 단발 출력 파일명에서 확장자를 뗀 stem. 구 `claude-htm-*.html` /
-    현행 `hub_htm_*.htm` 둘 다 인식 — 매치 안 되면 빈 문자열(호출측이 skip)."""
+    현행 `hub_htm_*.htm` / md-first `hub_htm_*.md`(Issue353_1) 인식 — 매치 안 되면
+    빈 문자열(호출측이 skip). 스캔·clear 전수·autoregister 가 공유하는 단일 패턴 게이트."""
     if name.startswith("claude-htm-") and name.endswith(".html"):
         return name[:-len(".html")]
     if name.startswith("hub_htm_") and name.endswith(".htm"):
         return name[:-len(".htm")]
+    if name.startswith("hub_htm_") and name.endswith(".md"):
+        return name[:-len(".md")]
     return ""
 TOKENS_FILE = f"{STATE_DIR}/tokens.json"
 SESSIONS_FILE = f"{STATE_DIR}/sessions.json"  # Issue17 Phase 1
@@ -104,6 +119,15 @@ DASH_HEARTBEAT_STALE = 1800.0
 # heartbeat TTL — register/heartbeat 후 이 시간 내면 live, 초과 시 terminal.
 # pid 가 주어지면 _pid_alive 가 권위적 신호이고 본 TTL 은 fallback.
 LIVE_TTL = 300.0
+
+# Issue374: live 세션 heartbeat 신선도 상한(초). DASH_HEARTBEAT_STALE 의 live 판.
+# pid 생존만으로 판정하면 **세션보다 오래 사는 호스트 프로세스**(Claude Desktop 이
+# 예약작업 종료 후에도 회수하지 않는 claude-code 호스트 등)가 끝난 세션을 영구
+# live 카드로 남긴다 — 실측 74.9시간(sid e208f4c1, 2026-08-09 예약작업 jobstart).
+# live 는 dashboard runner 와 달리 hook 이 발동할 때만 heartbeat 가 오르고 장시간
+# 유휴가 정상이므로 창을 훨씬 넓게 잡는다(실측 정상 세션 최대 유휴 15.4시간).
+# 초과분은 prune 되나 다음 hook 발동에 재등록되므로 손실은 유휴 구간의 카드뿐.
+LIVE_HEARTBEAT_STALE = 172800.0  # 48h
 
 # 메모리 상태
 projects_lock = threading.Lock()
@@ -412,6 +436,14 @@ HUB_SHELL_HTML = r"""<!DOCTYPE html>
     es.addEventListener("tab-open", function(ev){
       try{ addTab(JSON.parse(ev.data), true); }catch(_){}   // 신규 렌더 → 포커스
     });
+    // Issue378: 서버가 "이 쉘은 더 이상 유효 표면이 아니다" 를 통지 → 현재 모드의 URI 로 자기이동.
+    //   Issue377 의 302 는 새 요청에만 걸려 떠 있는 탭을 교정하지 못했다(수동 새로고침 요구).
+    //   replace 로 이동해 무효 표면을 히스토리에 남기지 않는다(뒤로가기 복귀 차단).
+    es.addEventListener("mode-change", function(ev){
+      var d = {}; try{ d = JSON.parse(ev.data||"{}"); }catch(_){}
+      try{es.close();}catch(_){}
+      location.replace(d.dest || "/hub");
+    });
   }
 
   // Issue194: iframe(/hub 홈 탭 등) 카드 열기(↗) → 내부 탭. 동일 origin postMessage.
@@ -438,6 +470,9 @@ HUB_SHELL_HTML = r"""<!DOCTYPE html>
   function ctOf(u){ u = u || ""; return /_b_/.test(u) ? "form" : (/_c_/.test(u) ? "dashboard" : "response"); }
   function pollDocs(){
     fetch("/boards?_=" + Date.now(), {cache:"no-store"}).then(function(r){return r.json();}).then(function(j){
+      // Issue378: SSE mode-change 폴백. SSE 가 끊긴 구간(서버 재시작·프록시 타임아웃)에는
+      //   서버 통지가 도달하지 않으므로 폴링에서도 같은 판정을 한다(이중 안전망).
+      if(j && j.render_tab_mode && j.render_tab_mode !== "hub-internal"){ location.replace("/hub"); return; }
       var docs = (j && j.htm_docs) || [];
       if(!pollInit){
         docs.forEach(function(d){ if(d.mtime_ts > pollBaseline) pollBaseline = d.mtime_ts; });
@@ -1059,7 +1094,8 @@ def _live_dismiss_add(h: str, sid: str) -> None:
 _HTM_DOC_PATH_RE = re.compile(
     r"/[^\s`\"'<>]+/_doc_work/(?:"
     + "|".join(re.escape(d) for d in HTM_DIRS)
-    + r")/claude-htm-[^\s`\"'<>]+\.html")
+    # Issue353_1: 현행 hub_htm_*.{htm,md} 도 feed autoheal 대상 (md-first 산출 포함)
+    + r")/(?:claude-htm-[^\s`\"'<>]+\.html|hub_htm_[^\s`\"'<>]+\.(?:htm|md))")
 
 
 def _autoheal_htm_registry(feed_items: list) -> None:
@@ -1386,6 +1422,32 @@ def _session_first_prompt(cwd: str, sid: str, limit: int = 60):
     return text
 
 
+def _live_session_title(cwd: str, sid: str, entry: dict):
+    """live 세션의 카드 제목 — **판정 단일 지점** (Issue359).
+
+    3단 폴백: ai-title(VSCode SSOT) → live_label(등록 시 전달) → 첫 프롬프트 발췌.
+    셋 다 없으면 None = **아직 프롬프트를 받지 않은 세션**이다.
+
+    ⚠️ 이 함수가 단일 지점인 이유 (2026-08-07 실측 사고):
+    좀비 킬러(`/kill-empty-live`)는 "빈 세션"을 `live_label` 하나로만 판정했다.
+    그런데 제목 소스는 Issue127(ai-title)·Issue328(first-prompt)로 늘어났고 그
+    판정만 낡은 채 남았다. 결과로 **Zed·터미널 세션은 화면에 제목이 멀쩡히 떠
+    있어도 구조적으로 항상 '빈 세션'** 이었다 — 그 둘은 ai-title 이 없고
+    (VSCode 확장 전용) label 도 안 실려 오므로 3단계로만 제목을 얻기 때문이다.
+    VSCode 세션도 SessionStart 훅이 label 을 생략하면(Issue121) 똑같이 걸렸다.
+    실제로 버튼 1회 클릭에 작업 중이던 7개 세션이 전부 SIGTERM(code 143) 됐다.
+
+    따라서 카드 렌더와 좀비 판정은 **반드시 이 함수 하나를 공유한다**. 제목 소스가
+    또 늘어나도 여기만 고치면 양쪽이 함께 따라온다."""
+    ai_title = _session_ai_title(cwd, sid)
+    if ai_title:
+        return ai_title
+    lbl = (entry or {}).get("live_label")
+    if isinstance(lbl, str) and lbl.strip():
+        return lbl.strip()
+    return _session_first_prompt(cwd, sid)
+
+
 def _html_escape(s):
     return (str(s).replace("&", "&amp;").replace("<", "&lt;")
             .replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;"))
@@ -1641,6 +1703,94 @@ def _ip_allowed(client_ip: str) -> bool:
     return False
 
 
+def _normalize_host(raw: str) -> str:
+    """Host 헤더·설정값 → 비교용 정규형. `:port` 분리 · IPv6 `[...]` 해제 ·
+    소문자화 · trailing dot(FQDN 절대표기) 제거. 빈 입력·파손 입력은 빈 문자열."""
+    h = (raw or "").strip()
+    if not h:
+        return ""
+    if h.startswith("["):          # IPv6 리터럴 — `[::1]:9876`
+        end = h.find("]")
+        if end == -1:
+            return ""
+        h = h[1:end]
+    elif h.count(":") == 1:
+        # 콜론 1개 + 뒤가 전부 숫자 → 포트. 콜론이 2개 이상이면 대괄호 없는 bare IPv6
+        # (`::1`)이므로 건드리지 않는다 — 마지막 `:` 뒤를 포트로 보면 `::1` → `:` 로 뭉개진다.
+        head, _, tail = h.partition(":")
+        if tail.isdigit():
+            h = head
+    return h.rstrip(".").lower()
+
+
+def _is_ip_literal(host: str) -> bool:
+    """정규화된 host 가 IP 리터럴인가 (rebinding 판정용)."""
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
+
+
+def _build_known_hosts() -> frozenset:
+    """수신 허용 이름 집합 산출 — bind_host + advertise_host + localhost +
+    hostname(+short+`.local`) + yml extra_hosts. 순수 문자열 조립이라 DNS 불요(bind 지연 0).
+
+    IP 리터럴은 _host_allowed 가 무조건 통과시키므로 판정상 불필요하나,
+    거부 로그에 "무엇이 허용 중인지" 를 그대로 보이기 위해 집합에 남긴다."""
+    names = set()
+    for h in BIND_HOSTS:
+        n = _normalize_host(h)
+        if n and n != "0.0.0.0":  # 와일드카드 bind 는 이름이 아니다
+            names.add(n)
+    setting = _load_hub_setting()
+    adv = _normalize_host(str(setting.get("advertise_host") or ""))
+    if adv:
+        names.add(adv)
+    for extra in (setting.get("extra_hosts") or []):
+        n = _normalize_host(str(extra))
+        if n:
+            names.add(n)
+    names.add("localhost")
+    try:
+        hn = _normalize_host(socket.gethostname())
+    except OSError:
+        hn = ""
+    if hn:
+        names.add(hn)
+        short = hn.split(".")[0]
+        if short:
+            names.add(short)
+            names.add(short + ".local")  # mDNS
+    return frozenset(n for n in names if n)
+
+
+def _host_allowed(raw_host: str, client_ip: str) -> bool:
+    """Issue379: 수신 이름 게이트. 요청이 도달한 소켓이 아니라 **어느 이름으로 불렸는지**를 본다.
+
+    통과 조건:
+      1. 게이트 비활성(host_gate=false) 또는 known 집합 공집합 → fail-open(종전 동작)
+      2. Host 가 IP 리터럴 → 항상 통과. rebinding 은 반드시 도메인 이름을 Host 로 보내므로
+         방어를 약화시키지 않는다. 반대로 게이트 오설정 시 `http://127.0.0.1:9876` 으로
+         항상 복구 가능하게 하여 자물쇠에 갇히는 사고를 구조적으로 막는다
+      3. Host 부재(HTTP/1.0) → 루프백 소스에 한해 통과 (로컬 스크립트·curl)
+      4. known 집합 멤버십"""
+    if not HOST_GATE or not KNOWN_HOSTS:
+        return True
+    host = _normalize_host(raw_host)
+    if not host:
+        if client_ip in LOOPBACK_IPS:
+            return True
+        log(f"[hostgate] DENY(absent) — src={client_ip!r}")
+        return False
+    if _is_ip_literal(host):
+        return True
+    if host in KNOWN_HOSTS:
+        return True
+    log(f"[hostgate] DENY — host={host!r} src={client_ip!r} KNOWN={sorted(KNOWN_HOSTS)}")
+    return False
+
+
 def _load_projects_colors() -> dict:
     """Projects.md 의 📋 프로젝트 테이블에서 cwd 경로 → peacock.color 매핑 추출."""
     global _projects_color_cache, _projects_color_cache_mtime
@@ -1803,12 +1953,8 @@ PROJECTS_MAP_NAME = "Projects_map.htm"
 PROJECTS_MAP_BUILDER = ".claude/skills/projects-map/build_projects_map.py"
 _ISSUE_MAP_MAX_UP = 6
 _ISSUE_MAP_TTL = 30.0            # 탐지 결과 캐시 수명(초) — /hub 폴링 5s 대비 stat 6배 절감
-_issue_map_cache: dict = {}      # cwd(str) -> (expire_ts, path|None, has_deps: bool)
+_issue_map_cache: dict = {}      # cwd(str) -> (expire_ts, path|None, has_graph: bool, stale: bool)
 _issue_map_lock = threading.Lock()
-# Issue284_1: 카드 아이콘 노출 조건 — `Issue.md` 에 `* depends:` 링크가 하나라도 있을 때만.
-#   의존 간선이 0 이면 관계도가 노드 나열에 그쳐 열 가치가 없다(아이콘만 늘어남).
-#   포맷 SSOT: `~/.claude/rules/issue-g.md` 규칙2 — `* depends: Issue<M>` / `prj<N>#Issue<M>`.
-_ISSUE_DEPENDS_RE = re.compile(r"^\s*\*\s*depends:\s*\S")
 # Issue284_3: 이슈 헤더(`## Issue1: …` / `### Issue1_2: …`) 줄이 `✅` 로 끝나면 완료 —
 #   issue-map 스킬(build_issue_map.py)의 done 판정과 동일 신호(섹션명 하드코딩 없음).
 _ISSUE_HEADER_RE = re.compile(r"^#{2,3}\s+Issue")
@@ -1818,51 +1964,65 @@ _ISSUE_SECTION_RE = re.compile(r"^#\s+(.+?)\s*$")
 #   화이트리스트가 아닌 블랙리스트인 이유 — 완료 섹션명은 프로젝트마다 다를 수 있어
 #   (ex: `🏁 완료-해결순`, issue-g.md 참고) 포함 섹션을 열거하면 그런 프로젝트에서 판정이 죽는다.
 _ISSUE_EXCLUDED_SECTIONS = {"⏸️ 보류", "🚫 취소"}
+# Issue361: 완료 섹션(build_issue_map.py `DONE_SECTIONS` 미러). 헤더 접미사 `✅` 만으로는
+#   구식 이슈(접미사 없이 `✅ 완료` 섹션 소속만으로 완료 표시)를 놓친다 — 빌더 자신이
+#   `section in DONE_SECTIONS or 헤더 끝 ✅` 로 판정하므로 여기도 두 신호를 함께 본다.
+_ISSUE_DONE_SECTIONS = {"✅ 완료"}
+
+# ── Issue363: 판정 소스를 **서빙될 맵 파일 자신**으로 둔다 ──────────────────────────
+#   카드 🗺️ 는 "누르면 관계도가 보인다"는 약속이다. 그러니 판정이 답해야 할 질문은
+#   *"지금 Issue.md 를 다시 빌드하면 그래프가 나오는가"* 가 아니라
+#   *"지금 서빙될 파일 안에 그래프가 있는가"* 다. 후자를 보면 아이콘과 서빙 결과는
+#   **정의상** 일치한다 — 두 축의 갱신 주기가 달라도 어긋날 수 없다.
+#
+#   ⚠️ 이 설계 이전 두 번의 시도가 모두 같은 이유로 실패했다:
+#     * `Issue.md` 정규식 미러 — 빌더 규칙(`DEP_NULL_TOKENS`·`settled`·고립 노드)을
+#       따라가지 못해 세 번 갈라졌다(Issue290 → Issue361 → Issue363).
+#     * 빌더 in-process import — 미러는 없앴지만 판정축이 여전히 "재빌드하면 나올 결과"라
+#       스냅샷과 어긋났다. prj1 실측에서 **실제 그래프(노드 6개)가 있는 맵의 아이콘이
+#       사라지는** 회귀를 냈다. 축을 바꾼 것이지 없앤 것이 아니었다.
+#
+#   계약: 생성기 `build_issue_map.py` 는 그래프 유무와 무관하게 `ISSUE-MAP:GRAPH:START/END`
+#   블록을 쓰고, 그 안에 그래프면 렌더된 `<svg>`, 아니면 "생략했습니다" 안내를 넣는다
+#   (생성기 L760~778). 따라서 **블록 안의 `<svg` 유무**가 판정이다.
+#   ⚠️ 생성기는 prj3(글로벌 SCAR) 자산이다 — 이 마커 규약을 바꾸려면 양쪽을 함께 고쳐야 한다.
+_ISSUE_MAP_GRAPH_START = "ISSUE-MAP:GRAPH:START"
+_ISSUE_MAP_GRAPH_END = "ISSUE-MAP:GRAPH:END"
+_ISSUE_MAP_HEAD_BYTES = 262144   # 마커 블록은 문서 앞부분(실측 ~100행) — 전량 로드 회피
 
 
-def _issue_md_has_depends(issue_md: str) -> bool:
-    """Issue.md 에 **맵에 실제로 그려질** 이슈가 선언한 `* depends:` 줄이 1개 이상 있으면 True.
+def _issue_map_has_graph(map_path: str) -> bool:
+    """맵 파일이 실제 관계도를 담고 있는가 — `ISSUE-MAP:GRAPH` 블록 안의 `<svg` 유무.
 
-    두 축을 모두 제외해야 맵과 판정이 일치한다 — 어느 한쪽만 보면 카드엔 🗺️ 가 뜨는데
-    맵은 빈 관계도(생략 안내문)를 렌더하는 불일치가 난다.
+    간선이 0 이면 생성기가 블록 안에 "생략했습니다" 안내만 넣으므로 열 가치가 없다
+    (Issue284_1 의 원래 의도 — 아이콘은 "볼 것이 있을 때만"). 판정 대상이 서빙될
+    파일 자신이라 아이콘과 서빙 결과가 어긋날 수 없다.
 
-    * 완료 이슈(헤더 줄이 `✅` 로 끝남) — issue-map 은 "자신+후행 모두 완료"를 관계도에서
-      제외하므로, 그런 depends 만 있는 프로젝트는 그래프가 비어 있다 (Issue284_3)
-    * ⏸️ 보류 · 🚫 취소 섹션 이슈 — issue-map 이 노드 자체를 빼므로 그 depends 도 그려지지
-      않는다 (prj3#Issue259 반영. 헤더가 `✅` 가 아니라 완료 축만으로는 못 걸러짐)
-
-    첫 매치에서 조기 종료.
+    마커가 없는 구버전 맵은 문서 전체의 `<svg` 로 폴백한다 — 마커 도입 전 산출물에서
+    아이콘이 통째로 사라지지 않게 하기 위함이다. 읽기 실패는 False(아이콘 숨김).
     """
     try:
-        current_done = False
-        excluded_section = False
-        with open(issue_md, encoding="utf-8", errors="replace") as f:
-            for line in f:
-                m_sec = _ISSUE_SECTION_RE.match(line)
-                if m_sec:
-                    excluded_section = m_sec.group(1) in _ISSUE_EXCLUDED_SECTIONS
-                    current_done = False
-                    continue
-                if _ISSUE_HEADER_RE.match(line):
-                    current_done = line.rstrip().endswith("✅")
-                    continue
-                if not current_done and not excluded_section and _ISSUE_DEPENDS_RE.match(line):
-                    return True
+        with open(map_path, encoding="utf-8", errors="replace") as f:
+            head = f.read(_ISSUE_MAP_HEAD_BYTES)
     except OSError:
         return False
-    return False
+    i = head.find(_ISSUE_MAP_GRAPH_START)
+    if i < 0:
+        return "<svg" in head
+    j = head.find(_ISSUE_MAP_GRAPH_END, i)
+    return "<svg" in (head[i:] if j < 0 else head[i:j])
 
 
 def _issue_map_scan(cwd: str) -> tuple:
-    """cwd 기준 (맵 절대경로|None, depends 보유 여부) 반환. TTL 캐시."""
+    """cwd 기준 (맵 절대경로|None, 맵이 그래프 보유, 맵 stale 여부) 반환. TTL 캐시."""
     if not cwd:
-        return None, False
+        return None, False, False
     now = time.time()
     with _issue_map_lock:
         hit = _issue_map_cache.get(cwd)
         if hit and hit[0] > now:
-            return hit[1], hit[2]
-    found, has_deps = None, False
+            return hit[1], hit[2], hit[3]
+    found, has_graph, stale = None, False, False
     try:
         d = os.path.realpath(os.path.expanduser(cwd))
         home = os.path.realpath(os.path.expanduser("~"))
@@ -1872,7 +2032,15 @@ def _issue_map_scan(cwd: str) -> tuple:
                 cand = os.path.join(d, ISSUE_MAP_NAME)
                 if os.path.isfile(cand):
                     found = cand
-                    has_deps = _issue_md_has_depends(issue_md)
+                    # Issue363: 판정 대상은 서빙될 파일 자신 — `Issue.md` 를 보지 않는다.
+                    has_graph = _issue_map_has_graph(cand)
+                    # Issue363(①): 맵은 생성 시점 스냅샷이라 `Issue.md` 가 더 새로우면
+                    #   내용이 낡았다. 아이콘 노출 여부는 바꾸지 않고 흐림 표식으로만
+                    #   고지한다 — 재생성은 `/fpm-issue-map` 수동.
+                    try:
+                        stale = os.path.getmtime(issue_md) > os.path.getmtime(cand)
+                    except OSError:
+                        stale = False
                 break
             parent = os.path.dirname(d)
             # 루트·홈 도달 시 중단 ($HOME 자체가 nPTiR 루트인 prj0 은 위 분기에서 이미 처리)
@@ -1880,23 +2048,47 @@ def _issue_map_scan(cwd: str) -> tuple:
                 break
             d = parent
     except OSError:
-        found, has_deps = None, False
+        found, has_graph, stale = None, False, False
     with _issue_map_lock:
-        _issue_map_cache[cwd] = (now + _ISSUE_MAP_TTL, found, has_deps)
-    return found, has_deps
+        _issue_map_cache[cwd] = (now + _ISSUE_MAP_TTL, found, has_graph, stale)
+    return found, has_graph, stale
 
 
 def _issue_map_path(cwd: str):
-    """cwd 기준 이슈맵 문서 절대경로 반환. 없으면 None. (serve 용 — depends 무관)"""
+    """cwd 기준 이슈맵 문서 절대경로 반환. 없으면 None. (serve 용 — 그래프 유무 무관)"""
     return _issue_map_scan(cwd)[0]
 
 
 def _issue_map_visible(cwd: str) -> bool:
-    """카드에 🗺️ 를 렌더할지 여부 — 맵 파일 존재 **AND** depends 링크 보유.
-    serve(`/issue-map`)는 `_issue_map_path` 기준이라, 아이콘이 사라져도 기존 URL 은 살아있다
-    (depends 를 지웠다고 북마크가 404 로 죽지 않음)."""
-    path, has_deps = _issue_map_scan(cwd)
-    return bool(path) and has_deps
+    """카드에 🗺️ 를 렌더할지 여부 — 맵 파일 존재 **AND 그 파일이 그래프를 담고 있음**.
+
+    판정 대상이 서빙될 파일 자신이라 아이콘과 서빙 결과는 정의상 일치한다(Issue363).
+    serve(`/issue-map`)는 `_issue_map_path` 기준이라, 아이콘이 사라져도 기존 URL 은 살아있다.
+
+    ⚠️ 남는 한계: 맵에 그래프가 없는데 `Issue.md` 에 새 depends 가 생긴 경우 아이콘은 뜨지
+    않는다 — 지금 서빙할 것이 없으니 옳은 동작이나, 재생성하면 그래프가 생긴다는 사실은
+    카드에 드러나지 않는다. 맵 자동 갱신은 별개 문제다(생성기가 prj3 소관)."""
+    path, has_graph, _stale = _issue_map_scan(cwd)
+    return bool(path) and has_graph
+
+
+def _issue_map_exists(cwd: str) -> bool:
+    """맵 **파일** 자체가 있는가 — 그래프 유무는 묻지 않는다 (Issue372).
+
+    `_issue_map_visible` 과 갈라 두는 이유: 그래프가 비었다고 문서가 빈 것은 아니다.
+    간선이 0 이어도 이슈 목록·완료 이력은 그대로 실려 있고 `/issue-map` 은 그것을
+    정상 serve 한다(serve 판정은 `_issue_map_path` — 그래프를 보지 않는다).
+    "열 가치가 있는가"(문서 존재)와 "관계도가 있는가"(그래프)는 다른 질문이며,
+    소비처가 둘을 3단으로 표현할 수 있도록 신호를 분리한다."""
+    return bool(_issue_map_scan(cwd)[0])
+
+
+def _issue_map_stale(cwd: str) -> bool:
+    """맵 파일이 `Issue.md` 보다 오래됐는지 (Issue363 ①). 아이콘 표식 전용 부속 신호로,
+    아이콘 노출 여부 자체(`_issue_map_visible`)에는 영향을 주지 않는다 —
+    '낡았다'와 '그릴 것이 없다'는 다른 사실이다."""
+    path, _has_graph, stale = _issue_map_scan(cwd)
+    return bool(path) and stale
 
 
 # Issue316: 카드 배지 — "활성 세션 수" 대신 "미완료 이슈 수"를 보여준다(세션 수는 카드 바디의
@@ -1905,11 +2097,13 @@ def _issue_map_visible(cwd: str) -> bool:
 _ISSUE_OPEN_COUNT_TTL = 30.0     # _issue_map_cache 와 동일 TTL — /hub 폴링 5s 대비 stat 절감
 _issue_open_count_cache: dict = {}  # cwd(str) -> (expire_ts, count)
 _issue_open_count_lock = threading.Lock()
-# build_issue_map.py DONE_SECTIONS 미러. `_issue_md_has_depends()` 는 "헤더 줄 끝 ✅" 만으로
-# done 을 판정하는데, 이 저장소 Issue.md 실측 결과 구식 이슈(Issue230/232/236 등)는 ✅ 접미사 없이
-# `✅ 완료` 섹션 소속만으로 완료 표시됨 — 섹션 판정을 1차 신호로, 헤더 접미사를 보강 신호로 둔다
-# (프로젝트가 다른 완료 섹션명을 쓰는 경우 대비).
-_ISSUE_DONE_SECTIONS = {"✅ 완료"}
+# 완료 판정은 `_ISSUE_DONE_SECTIONS`(위, `_ISSUE_EXCLUDED_SECTIONS` 옆) 를 공유한다 —
+# 섹션 판정이 1차 신호, 헤더 접미사 `✅` 가 보강 신호. 구식 이슈(Issue230/232/236 등)는
+# 접미사 없이 섹션 소속만으로 완료 표시되므로 두 신호가 모두 필요하다.
+# ⚠️ Issue363 정정: 카드 **아이콘**은 이제 `Issue.md` 를 아예 보지 않고 맵 파일만 본다.
+#   여기 **배지**(미완료 수)는 `Issue.md` 자체 순회다 — 축이 다르지만 묻는 질문도 다르다
+#   ("볼 관계도가 있는가" vs "미완료가 몇 건인가"). 같은 값을 낼 이유가 없으므로 미러가 아니다.
+#   (구 주석 "두 벌로 두지 않는다"(Issue361)는 depends 판정이 사라져 대상 자체가 없어졌다)
 
 
 def _find_issue_md(cwd: str) -> str | None:
@@ -1936,8 +2130,7 @@ def _find_issue_md(cwd: str) -> str | None:
 
 def _count_open_issues(issue_md: str) -> int:
     """Issue.md 의 미완료 이슈 개수 — 완료(헤더 줄 끝 ✅)·⏸️ 보류·🚫 취소 섹션을 제외한
-    이슈 헤더(`## Issue1:` / `### Issue1_2:`) 개수. `_issue_md_has_depends()` 와 동일한
-    섹션 추적 순회를 재사용한다."""
+    이슈 헤더(`## Issue1:` / `### Issue1_2:`) 개수."""
     count = 0
     try:
         section_done = False
@@ -2059,12 +2252,27 @@ def _htm_state_file(path: str) -> tuple:
 
 def _projects_list_with_htm() -> list:
     """_load_projects_list() 결과에 htm off 상태 주입. htm 상태는 Projects.md mtime 과
-    무관하게 변하므로 캐시 밖에서 매 요청 계산 (state 파일은 소수 → IO 경량)."""
+    무관하게 변하므로 캐시 밖에서 매 요청 계산 (state 파일은 소수 → IO 경량).
+
+    Issue368: Project List 의 `Map` 컬럼용으로 이슈맵 보유 여부도 함께 싣는다. 판정은
+    카드 🗺️ 와 **같은 함수**(`_issue_map_visible`/`_issue_map_stale`)를 쓴다 — 두 화면이
+    같은 프로젝트를 다르게 말하지 않게 하는 것이 목적이라, 여기서 따로 판정하지 않는다.
+    스캔은 TTL 30s 캐시를 공유하고 팝업 열 때만 호출되므로 폴링 비용에 영향이 없다."""
     rows = _load_projects_list()
     out = []
     for r in rows:
-        off, reason = _htm_state(r.get("path", ""))
-        out.append({**r, "htm_off": off, "htm_reason": reason})
+        path = r.get("path", "")
+        off, reason = _htm_state(path)
+        out.append({
+            **r,
+            "htm_off": off,
+            "htm_reason": reason,
+            "issue_map": _issue_map_visible(path),
+            # Issue372: 그래프 유무와 별개로 "맵 문서가 있는가" — 소비처(Projects_map 팝업)가
+            #   ①없음 ②문서만 ③문서+그래프 3단으로 갈라 표현한다. 같은 TTL 캐시를 쓴다.
+            "issue_map_file": _issue_map_exists(path),
+            "issue_map_stale": _issue_map_stale(path),
+        })
     return out
 
 
@@ -2196,6 +2404,12 @@ HUB_SETTING_DEFAULTS = {"feed_limit": 100, "feed_default_visible": True, "feed_p
                         #   Servers.md 와 additive(병합) — 추가 grant. 호스트명 미지원(IP/CIDR 만, DNS 비의존).
                         #   yml 표기: allow_list: [192.168.0.5, 192.168.0.0/24]. yml 전용(UI 미편집). 변경 시 restart.
                         "allow_list": [],
+                        # Issue379: 수신 이름(Host 헤더) 게이트. true(기본)=known 집합 밖 이름은 421.
+                        #   known = bind_host + advertise_host + localhost + hostname(+.local) + extra_hosts.
+                        #   IP 리터럴 Host 는 항상 통과(잠김 방지). 변경 시 restart.
+                        "host_gate": True,
+                        # Issue379: 수신 허용 이름 추가분(리버스 프록시 도메인 등). yml 전용. 변경 시 restart.
+                        "extra_hosts": [],
                         # Issue159: 활성세션 정렬 — updated(최근갱신순) / created(세션 시작순 고정)
                         #   / project(Projects.md 번호순, 미등록 cwd 는 끝)
                         "live_session_order": "updated",
@@ -2228,7 +2442,21 @@ HUB_SETTING_DEFAULTS = {"feed_limit": 100, "feed_default_visible": True, "feed_p
                         "simple_browser_focus": "gate",
                         # Issue258: 서버 로그 상세도 — VERBOSE/DEBUG/INFO(기본)/WARNING/ERROR/CRITICAL.
                         #   값 미만 레벨 로그 억제. Chrome AX 크래시 직전 이벤트 타임라인 수집 시 VERBOSE 로 상향.
-                        "log_level": "INFO"}
+                        "log_level": "INFO",
+                        # Issue353_2 M2-e: 라이브 표시 모드 — auto(기본)/live-tab/browser-tab.
+                        #   live-tab   = 세션당 라이브 뷰 1탭에 계속 append (기본 UX)
+                        #   browser-tab= 턴마다 아카이브 md 문서를 새 탭으로 (구 동작)
+                        #   auto       = live-tab 로 시작하되 브라우저가 열화(메모리·DOM 노드·
+                        #                렌더 시간)를 보고하면 그 탭을 browser-tab 으로 강등
+                        "render_display": "auto",
+                        # 강등 임계 — DOM 노드 수 / 렌더 1회 소요(ms) / JS 힙 사용률(%)
+                        "live_degrade_nodes": 12000,
+                        "live_degrade_render_ms": 400,
+                        "live_degrade_heap_pct": 85,
+                        # Issue353_3 M3: 적응형 렌더 게이트 — always/short/page(기본)/doc.
+                        #   판정 주체는 **서버 규칙 엔진**(메일박스 실측)이다. LLM 자율 판정을
+                        #   쓰지 않으므로 지시문 드리프트가 없다. 상세: services/hub/render_gate.py
+                        "auto_render": "page"}
 _hub_setting_cache: dict = {}
 _hub_setting_cache_mtime: float = 0.0
 
@@ -2516,6 +2744,9 @@ HUB_SETTING_SCHEMA = [
      "apply": "hook", "comment": "Claude Code(렌더 hook)가 채팅에 표시하는 hub|both URL 의 host (생략 시 bind_host fallback). bind_host=0.0.0.0 이면 생략 금지"},
     {"key": "allow_server_list", "tab": "advanced", "widget": "toggle",
      "apply": "restart", "comment": "hub 서버 접속 허용 게이트 (source-IP 기준) — true=Servers.md 화이트리스트+자기 자신 허용 / false=자기 자신(bind_host)만 허용, 외부 전부 차단. 변경 시 서버 restart 필요"},
+    # Issue379: 수신 이름(Host 헤더) 게이트 — 위 source-IP 게이트의 짝
+    {"key": "host_gate", "tab": "advanced", "widget": "toggle",
+     "apply": "restart", "comment": "hub 서버 접속 허용 게이트 (수신 이름=Host 헤더 기준) — true(기본)=bind_host·advertise_host·localhost·hostname(.local)·extra_hosts 만 허용하고 그 외 이름은 421 거부(DNS rebinding 방어) / false=모든 이름 허용(종전). IP 리터럴 Host 는 항상 통과. 변경 시 서버 restart 필요"},
     {"key": "ssh_remote_alias", "tab": "advanced", "widget": "text", "optional": True,
      "apply": "auto", "comment": "hub 서버가 원격 브라우저의 open-project/open-session 요청에 vscode-remote://ssh-remote+<alias> 링크로 응답할 때 쓰는 SSH alias (클라이언트 ~/.ssh/config 의 Host 이름, ex: gl). 빈 값=비활성"},
     # Issue277: 활성세션 행 세션 ID 복사 버튼(📋) 표시 여부
@@ -3107,17 +3338,91 @@ def _gc_execute(steps: list) -> list:
 #       스레드 닫힘은 구분하지 못한다.
 #   - 프로세스 상태·CPU·fd 구성도 활성/비활성이 동일했다.
 #   - 유일하게 갈라지는 신호가 heartbeat 신선도(= transcript mtime)였다.
-# 따라서 하이브리드로 간다: 브리지 사망은 즉시 리핑(부모 판정의 유효 부분),
+# 따라서 하이브리드로 갔다: 브리지 사망은 즉시 리핑(부모 판정의 유효 부분),
 # 그 외는 idle TTL. 대상은 origin=="zed" 세션으로 한정한다 — VSCode 확장은
 # 자체 세션 관리가 있고, 터미널 세션은 사용자가 직접 띄운 것이라 오살 위험이 크다.
-ZED_IDLE_TTL = 1800.0   # 30분. heartbeat 갱신이 끊긴 zed 세션의 리핑 임계
+#
+# ⚠️ idle-ttl 철회 (2026-08-05, prj5 실측) ------------------------------------
+# heartbeat 신선도는 "닫힌 스레드"와 "열려 있지만 유휴인 스레드"를 구분하지 못한다.
+# 그 결과 사용자가 30분 자리를 비우면 살아있는 스레드가 SIGTERM 되고, claude 는
+# 핸들러에서 exit(143), ACP 브리지가 세션을 evict → 사용자가 입력하는 순간
+# "Session not found" 로 스레드가 통째로 못 쓰게 됐다(Zed 0.64.2 는 session/load
+# 를 부르지 않아 복구 불가). 2026-08-03~05 실측 22건 전부 reasons=['idle-ttl'].
+# 리핑 이득(프로세스 누적 억제)보다 손실(작업 중 스레드 소실)이 커서 제거한다.
+#
+# ⚠️ 위 문단의 "스레드마다 브리지를 따로 띄운다" 는 오판이었다 (Issue360, 2026-08-07)
+# 실측: 등록된 zed live 세션 27개의 부모가 전부 동일 브리지 PID 하나였고, 실제
+# 브리지는 3개(창 단위)뿐이었다. 2026-07-27 의 "단일 브리지" 관측이 여전히 맞다.
+# 그래서 bridge-dead 는 Zed 앱을 통째로 끄기 전에는 참이 될 수 없고, 리퍼는 기동
+# 이후 단 1건도 잡지 못했다(로그에 started 만, reaped 0건). idle-ttl 을 철회한
+# 자리를 메울 신호가 없어 누적이 그대로 진행됐다.
+#
+# --- Issue360: 스레드 닫힘의 "직접 신호" 도입 -------------------------------
+# ACP 프로토콜에는 스레드 닫힘 알림이 없다 — 메서드 전수 12종(session/{new,load,
+# prompt,cancel,fork,list,resume,update,set_mode,set_model,set_config_option,
+# request_permission})에 close 가 없고, 브리지의 cancel() 은 cancelled 플래그만
+# 세우고 세션을 delete 하지 않는다. 즉 브리지조차 닫힘을 모르므로 그 경유로는
+# 원리적으로 불가능하다.
+# 대신 Zed 가 자기 로컬 db 에 사실을 기록한다:
+#   ~/Library/Application Support/Zed/db/<채널>/db.sqlite
+#     테이블 sidebar_threads(session_id, agent_id, archived, ...)
+#   agent_id='claude-acp' + archived=1 → 그 스레드는 닫혔다
+# hub 의 sid 와 Zed 의 session_id 는 같은 값이다(실측 교집합 37건).
+#
+# idle-ttl 과의 결정적 차이: idle-ttl 은 열림/닫힘을 heartbeat 로 *추측*했으나
+# archived 는 Zed 가 닫는 순간 *기록한 사실*이다. archived=0 은 절대 건드리지
+# 않으므로 "유휴한 열린 스레드" 를 죽이는 Issue357 의 사고 경로가 구조적으로 없다.
+# 되살아난 스레드도 안전하다 — 아카이브된 스레드를 다시 열면 Zed 가 session/load
+# 로 새 프로세스를 띄우므로 "Session not found" 로 못 쓰게 되지 않는다.
 
 
-def _zed_orphan_reason(entry: dict, now: float):
+ZED_DB_GLOB = os.path.expanduser("~/Library/Application Support/Zed/db/*/db.sqlite")
+
+
+def _zed_archived_sids() -> frozenset:
+    """Issue360: Zed 가 '닫힘'으로 기록한 ACP 스레드의 session_id 집합.
+
+    실행 중인 db 를 읽기 전용(mode=ro)으로 붙는다 — WAL 최신 상태가 반영되고
+    실측 2ms 다. 릴리즈 채널마다 db 가 갈리므로 glob 로 전부 훑어 합집합을 만든다
+    (session_id 는 UUID 라 채널 간 충돌이 없다).
+
+    fail-soft: db 부재·테이블 없음(0-global 등)·lock·권한 실패는 조용히 건너뛴다.
+    빈 집합을 돌려주면 호출부가 thread-archived 판정을 하지 않을 뿐이고, 기존
+    bridge-dead 판정은 그대로 산다. 여기서 loud 하게 굴면 Zed 를 안 쓰는 사용자의
+    리퍼까지 매 주기 시끄러워진다."""
+    sids = set()
+    for path in glob.glob(ZED_DB_GLOB):
+        con = None
+        try:
+            uri = "file:" + path.replace("?", "%3f").replace("#", "%23") + "?mode=ro"
+            con = sqlite3.connect(uri, uri=True, timeout=1.0)
+            con.execute("PRAGMA busy_timeout=800")
+            rows = con.execute(
+                "SELECT session_id FROM sidebar_threads "
+                "WHERE agent_id='claude-acp' AND archived=1 AND session_id IS NOT NULL"
+            ).fetchall()
+            sids.update(r[0] for r in rows if r and r[0])
+        except sqlite3.Error:
+            continue  # 테이블 없음·lock·손상 — 이 db 만 건너뛴다
+        except Exception:
+            continue
+        finally:
+            if con is not None:
+                try:
+                    con.close()
+                except Exception:
+                    pass
+    return frozenset(sids)
+
+
+def _zed_orphan_reason(entry: dict, now: float, sid: str = "",
+                       archived_sids: frozenset = frozenset()):
     """origin=zed live 세션의 orphan 사유 판정 (순수 — kill 없음).
-    반환: 사유 문자열 또는 None(보존). 판정 순서는 확정적인 것부터.
-      - bridge-dead   : 등록 시 캡처한 부모(ACP 브리지)가 죽었거나 reparent 됨
-      - idle-ttl      : heartbeat 가 ZED_IDLE_TTL 초 이상 갱신되지 않음
+    반환: 사유 문자열 또는 None(보존).
+      - thread-archived : Zed 가 그 스레드를 닫음(sidebar_threads.archived=1) — Issue360
+      - bridge-dead     : 등록 시 캡처한 부모(ACP 브리지)가 죽었거나 reparent 됨
+    `now` 는 idle-ttl 철회 후 미사용 — 호출부 시그니처 유지를 위해 남겨 둔다.
+    `archived_sids` 는 호출부가 1회 조회해 넘긴다(세션마다 db 를 열지 않기 위함).
     """
     if entry.get("content_type") != "live":
         return None
@@ -3130,6 +3435,10 @@ def _zed_orphan_reason(entry: dict, now: float):
         return None
     if pid <= 1 or not _pid_alive(pid):
         return None  # 이미 죽음 — 카드 정리는 기존 게이트가 처리
+    # Issue360: 스레드 닫힘의 직접 신호. archived=1 로 *명시된* sid 만 잡는다 —
+    #   db 에 아직 안 올라온 신규 세션·조회 실패는 여기서 보존된다(블랙리스트).
+    if sid and sid in archived_sids:
+        return "thread-archived"
     meta = entry.get("gc_meta") or {}
     captured_parent = meta.get("shell_pid")
     cur_ppid = _ps_ppid(pid)
@@ -3140,8 +3449,6 @@ def _zed_orphan_reason(entry: dict, now: float):
             return "bridge-dead"
     elif cur_ppid is not None and cur_ppid <= 1:
         return "bridge-dead"
-    if now - (entry.get("updated") or 0) >= ZED_IDLE_TTL:
-        return "idle-ttl"
     return None
 
 
@@ -3153,15 +3460,26 @@ def _reap_zed_orphans() -> dict:
     now = time.time()
     with sessions_lock:
         snap = list(sessions.items())
+    # Issue360: db 조회는 세션당이 아니라 1회. 실패 시 빈 집합 → bridge-dead 만 산다.
+    archived_sids = _zed_archived_sids()
     victims = []  # (h, sid, pid, reason)
+    zed_seen = 0
     for (h, sid), entry in snap:
         if not isinstance(entry, dict):
             continue
-        reason = _zed_orphan_reason(entry, now)
+        if (entry.get("content_type") == "live"
+                and _origin_from_caps(entry.get("capabilities") or {}) == "zed"):
+            zed_seen += 1
+        reason = _zed_orphan_reason(entry, now, sid, archived_sids)
         if reason:
             victims.append((h, sid, int(entry.get("live_pid")), reason))
+    # Issue360: 0건일 때도 판정 재료를 돌려준다. Issue331 리퍼가 반년 가까이
+    #   헛돌았는데 아무도 몰랐던 이유가 "0건 잡음"과 "고장나서 0건"을 구분할
+    #   수단이 없었기 때문이다. zed_seen>0 인데 archived_known=0 이면 db 조회
+    #   실패를, 둘 다 0 이면 그냥 대상이 없음을 뜻한다.
     if not victims:
-        return {"reaped": 0, "victims": []}
+        return {"reaped": 0, "victims": [], "zed_seen": zed_seen,
+                "archived_known": len(archived_sids)}
     results = []
     for h, sid, pid, reason in victims:
         stages = _gc_execute([{"kind": "kill-claude", "pid": pid}])
@@ -3177,13 +3495,15 @@ def _reap_zed_orphans() -> dict:
     if pruned:
         persist_sessions()
     log(f"[reaper] zed orphans reaped={len(results)} pruned={pruned} "
-        f"reasons={[r['reason'] for r in results]}")
-    return {"reaped": len(results), "pruned": pruned, "victims": results}
+        f"archived_known={len(archived_sids)} reasons={[r['reason'] for r in results]}")
+    return {"reaped": len(results), "pruned": pruned, "zed_seen": zed_seen,
+            "archived_known": len(archived_sids), "victims": results}
 
 
 def _orphan_reaper_loop(interval: float = 120.0) -> None:
     """주기 리퍼. 대상 세션이 없으면 판정 비용도 0 에 수렴(딕셔너리 스캔뿐)."""
-    log(f"[reaper] started — interval={interval}s idle_ttl={ZED_IDLE_TTL}s (zed only)")
+    log(f"[reaper] started — interval={interval}s "
+        f"policy=thread-archived+bridge-dead (zed only)")
     while True:
         try:
             time.sleep(interval)
@@ -3427,7 +3747,19 @@ class Handler(BaseHTTPRequestHandler):
             return
         self._send_json(403, {"error": "ip not allowed"})
 
+    def _host_gate(self) -> bool:
+        """Issue379: 수신 이름 게이트. 통과=True, 거부 시 421 응답까지 마치고 False.
+        421 Misdirected Request = "이 서버는 그 이름에 대한 권한이 없다"(RFC 7540 9.1.2)."""
+        ip = self.client_address[0] if self.client_address else ""
+        if _host_allowed(self.headers.get("Host", ""), ip):
+            return True
+        self._send_json(421, {"error": "host not allowed"})
+        return False
+
     def do_OPTIONS(self):
+        # Issue379: preflight 도 게이트 대상 — 여기서 막으면 브라우저가 본 요청을 아예 안 보낸다.
+        if not self._host_gate():
+            return
         self._send_json(204, {})
 
     def do_GET(self):
@@ -3436,6 +3768,10 @@ class Handler(BaseHTTPRequestHandler):
         # → 토큰 노출 GET(/boards, /hub)·SSE 까지 일괄 보호.
         if not _ip_allowed(self.client_address[0] if self.client_address else ""):
             self._deny_ip()
+            return
+        # Issue379: 수신 이름 게이트(위 게이트의 짝). src 가 루프백인 DNS rebinding 은
+        # _ip_allowed 를 통과하므로 여기서 이름으로 막는다.
+        if not self._host_gate():
             return
         parsed = urlparse(self.path)
         if parsed.path == "/":
@@ -3547,6 +3883,13 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/htm-doc":
             self._handle_htm_doc(parsed)
             return
+        if parsed.path == "/md-doc":
+            self._handle_md_doc(parsed)
+            return
+        # Issue356_1: 훅이 라이브 뷰 URL 을 조립하기 위한 조회 진입점
+        if parsed.path == "/live-url":
+            self._handle_live_url(parsed)
+            return
         # Issue255: htm 문서 상대 리소스(이미지) serve
         if parsed.path == "/htm-res":
             self._handle_htm_res(parsed)
@@ -3609,6 +3952,9 @@ class Handler(BaseHTTPRequestHandler):
         # Issue141: 전역 source-IP 게이트 (do_GET 대칭).
         if not _ip_allowed(self.client_address[0] if self.client_address else ""):
             self._deny_ip()
+            return
+        # Issue379: 수신 이름 게이트 (do_GET 대칭). 쓰기 API 가 rebinding 의 실제 표적이다.
+        if not self._host_gate():
             return
         parsed = urlparse(self.path)
         if parsed.path == "/register":
@@ -3706,6 +4052,21 @@ class Handler(BaseHTTPRequestHandler):
         # Issue24 Phase 3: /s/{cwd_hash}/{sid}/action (widget notify action inbox)
         if parsed.path.startswith("/s/") and parsed.path.endswith("/action"):
             self._handle_session_action(parsed)
+            return
+        # Issue356_1: /s/{cwd_hash}/{sid}/degrade — 라이브 탭 열화 강등 통보
+        if parsed.path.startswith("/s/") and parsed.path.endswith("/degrade"):
+            parts = parsed.path.strip("/").split("/")
+            if len(parts) >= 4:
+                cwd_h, sid_raw = parts[1], parts[2]
+                sid = "".join(c for c in sid_raw if c.isalnum() or c in "-_")
+                with projects_lock:
+                    p = projects.get(cwd_h)
+                token = get_token_param(parsed)
+                if (p and sid == sid_raw and token
+                        and hmac.compare_digest(p.get("token", ""), token)):
+                    self._handle_session_degrade(parsed, cwd_h, sid)
+                    return
+            self._send_json(401, {"error": "invalid session or token"})
             return
         self._send_json(404, {"error": "not found"})
 
@@ -3979,12 +4340,21 @@ class Handler(BaseHTTPRequestHandler):
 
     @staticmethod
     def _extract_html_title(abs_path: str) -> str:
-        """Issue40: HTML head(앞 8KB)에서 <title> 텍스트 추출. 실패 시 빈 문자열."""
+        """Issue40: HTML head(앞 8KB)에서 <title> 텍스트 추출. 실패 시 빈 문자열.
+        Issue353_1: `.md` 는 frontmatter `title:`/`name:` → 첫 헤딩 순으로 추출."""
         try:
             with open(abs_path, encoding="utf-8", errors="replace") as f:
                 head = f.read(8192)
         except OSError:
             return ""
+        if abs_path.endswith(".md"):
+            m = re.match(r"(?s)\A---\n(.*?)\n---", head)
+            if m:
+                fm = re.search(r'(?m)^(?:title|name):\s*["\']?([^"\'\n]+)', m.group(1))
+                if fm:
+                    return fm.group(1).strip()
+            h = re.search(r"(?m)^#{1,6}\s+(.+)$", head)
+            return h.group(1).strip() if h else ""
         low = head.lower()
         i = low.find("<title>")
         if i < 0:
@@ -3997,12 +4367,24 @@ class Handler(BaseHTTPRequestHandler):
     @staticmethod
     def _extract_html_summary(abs_path: str) -> str:
         """Issue70: HTML <body> 앞부분에서 script/style/태그를 제거한 첫 텍스트 발췌.
-        htm-doc 카드 본문 2줄 요약용. 실패 시 빈 문자열."""
+        htm-doc 카드 본문 2줄 요약용. 실패 시 빈 문자열.
+        Issue353_1: `.md` 는 frontmatter·헤딩·코드펜스 라인을 제외한 첫 본문 발췌."""
         try:
             with open(abs_path, encoding="utf-8", errors="replace") as f:
                 data = f.read(16384)
         except OSError:
             return ""
+        if abs_path.endswith(".md"):
+            body = re.sub(r"(?s)\A---\n.*?\n---\n?", "", data)
+            lines = []
+            for ln in body.splitlines():
+                t = ln.strip()
+                if not t or t.startswith(("#", "```", "---", "|", ">")):
+                    continue
+                lines.append(re.sub(r"[*`_\[\]()]", "", t))
+                if sum(len(x) for x in lines) > 200:
+                    break
+            return " ".join(lines)[:200]
         low = data.lower()
         bi = low.find("<body")
         if bi >= 0:
@@ -4024,11 +4406,20 @@ class Handler(BaseHTTPRequestHandler):
         """Issue169: htm 문서를 만든 세션 sid 추출. canonical 헤더의 세션 링크
         onclick(`sid:'<sid>'`) 또는 vscode URI(`open?session=<sid>`)에서 발췌.
         hub 카드 '🆚 세션' 버튼이 /open-session 으로 그 세션 탭을 포커스하게 함.
-        전역 hook(register-doc) 의존 없이 파일 자체에서 회수. 실패 시 빈 문자열."""
+        전역 hook(register-doc) 의존 없이 파일 자체에서 회수. 실패 시 빈 문자열.
+        Issue353_1: `.md` 는 frontmatter `sid:` 에서 회수(md 셸이 헤더 🆚 버튼 생성)."""
         try:
             with open(abs_path, encoding="utf-8", errors="replace") as f:
                 data = f.read(65536)
         except OSError:
+            return ""
+        if abs_path.endswith(".md"):
+            fm = re.match(r"(?s)\A---\n(.*?)\n---", data)
+            if fm:
+                ms = re.search(r'(?m)^sid:\s*["\']?([A-Za-z0-9_-]{1,128})',
+                               fm.group(1))
+                if ms:
+                    return ms.group(1)
             return ""
         m = re.search(r"sid:'([A-Za-z0-9_-]{1,128})'", data)
         if not m:
@@ -4221,7 +4612,10 @@ class Handler(BaseHTTPRequestHandler):
                 name, color, token = "system/___pm-tmp", "hsl(0,0%,75%)", ""
             view_url = ""
             if not missing:
-                if token:
+                if path.endswith(".md"):
+                    # Issue353_1: md 산출은 토큰 유무 무관 md 셸 라우트 (registry 게이트)
+                    view_url = f"/md-doc?path={_u.quote(path)}"
+                elif token:
                     view_url = (f"/view?cwd={_u.quote(cwd)}&token={token}"
                                 f"&path={_u.quote(path)}")
                 else:
@@ -4505,6 +4899,10 @@ class Handler(BaseHTTPRequestHandler):
             "htm_docs": htm_docs,
             "hook_feed": hook_feed,
             "important_events": important_events,
+            # Issue378: 떠 있는 탭의 표면 자기교정용. Issue377 의 302 는 새 요청에만 걸리므로
+            #   이미 열린 탭은 모드 변경을 모른 채 무효 표면에 남는다. 양 표면이 이미 /boards 를
+            #   폴링하므로 여기에 실어 보내 신규 폴링·엔드포인트 추가 0 으로 해결한다.
+            "render_tab_mode": _load_hub_setting().get("render_tab_mode"),
             "live_session_limit": _load_hub_setting()["live_session_limit"],  # Issue129: 카드당 세션 행 상한
             "live_session_copy_button": _load_hub_setting()["live_session_copy_button"],  # Issue277: 세션 ID 복사 버튼 표시
             "feed_blink_on_new": _load_hub_setting()["feed_blink_on_new"],  # Issue279: 새 피드 깜빡임
@@ -4714,11 +5112,20 @@ class Handler(BaseHTTPRequestHandler):
             #   pid 주어지면 _pid_alive 가 권위적 — 죽으면 terminal, 살면 force_live.
             #   pid 없으면 heartbeat TTL(LIVE_TTL) fallback. dashboard 와 달리 runner_pid
             #   는 None 으로 둬 카드에 kill 버튼 미노출 (claude 세션 오살 방지).
+            #   Issue374: 단 pid 생존은 **필요조건일 뿐** — heartbeat 가
+            #   LIVE_HEARTBEAT_STALE 을 넘으면 pid 가 살아 있어도 terminal 이다.
             elif entry.get("content_type") == "live":
                 # Issue135: 수동 dismiss tombstone — TTL 내면 live_pid 생존(force_live)
                 #   이어도 표시 제외. sessions 는 유지(pop 안 함) → TTL 만료 후 자동 복귀.
                 #   살아있는 세션의 재등록 heartbeat 부활을 렌더 단계에서 차단.
                 if f"{h}|{sid}" in live_dismissed_snap:
+                    continue
+                # Issue374: pid 생존만으론 부족 — 세션보다 오래 사는 호스트 프로세스가
+                #   있으면(Claude Desktop 예약작업 호스트 등) 끝난 세션이 영구 live 로
+                #   남는다. dashboard 와 동일하게 heartbeat 신선도를 함께 요구한다.
+                #   pid 유무 양쪽 경로에 걸리도록 live_pid 판정 앞에 둔다.
+                if age > LIVE_HEARTBEAT_STALE:
+                    terminal_keys.append((h, sid))
                     continue
                 lp = entry.get("live_pid")
                 if lp is not None:
@@ -4749,18 +5156,11 @@ class Handler(BaseHTTPRequestHandler):
                 #   aiTitle 이 VSCode 가 표시하는 제목의 SSOT. hub 카드를 VSCode 와 일치시킴.
                 #   ai-title 미생성(세션 극초기)이면 live_label(프롬프트 요약), 그다음 win fallback.
                 #   Issue121 SessionStart 훅이 label 미전송·capabilities 만 보낼 때 win 대비.
-                ai_title = _session_ai_title(proj_snap.get(h, {}).get("cwd", ""), sid)
-                lbl = entry.get("live_label")
-                if ai_title:
-                    dash_title = ai_title
-                elif isinstance(lbl, str) and lbl.strip():
-                    dash_title = lbl.strip()
-                else:
-                    # Issue328: 최종 폴백 — JSONL 첫 user 프롬프트 발췌.
-                    #   ai-title 은 VSCode 확장 전용이라 Zed(sdk-ts)·터미널 세션은
-                    #   영구 title 없음 → Issue166 빈 세션 필터에 걸려 통째로 숨겨졌다.
-                    dash_title = _session_first_prompt(
-                        proj_snap.get(h, {}).get("cwd", ""), sid)
+                #   Issue328: 최종 폴백 — JSONL 첫 user 프롬프트 발췌(Zed·터미널용).
+                #   Issue359: 3단 판정을 _live_session_title 로 추출 — 좀비 킬러가
+                #     같은 함수를 쓰게 해 "제목 있음"의 정의가 갈라지지 않게 한다.
+                dash_title = _live_session_title(
+                    proj_snap.get(h, {}).get("cwd", ""), sid, entry)
                 # else (Issue129): 명령(프롬프트) 전 세션 → dash_title None 유지 → 클라가 "-" 표기.
                 #   기존 "claude · win N" fallback 제거 — VSCode 세션엔 무의미(전부 win 1).
             if not force_live:
@@ -4798,6 +5198,8 @@ class Handler(BaseHTTPRequestHandler):
                 #   부족하고 `Issue.md` 에 `* depends:` 간선이 있어야 노출(관계도 가치 有).
                 #   경로는 노출하지 않는다(/issue-map 이 cwd 로 서버측 재계산 — 경로 조작 차단).
                 "issue_map": _issue_map_visible(p.get("cwd", "")),
+                # Issue363: 맵 파일이 Issue.md 보다 오래됨 → 아이콘에 흐림 표식(노출 여부는 불변)
+                "issue_map_stale": _issue_map_stale(p.get("cwd", "")),
                 "open_issue_count": _issue_open_count(p.get("cwd", "")),  # Issue316: 카드 배지 — 미완료 이슈 수
                 "mode": entry.get("mode"),
                 "content_type": entry.get("content_type"),
@@ -5120,24 +5522,38 @@ __WARN__
     def _handle_kill_empty_live(self, parsed):
         """Issue137: 빈(title 없는) live 세션의 좀비 claude 프로세스를 일괄 종료.
         VSCode 확장이 세션 종료 후에도 살려둔 native claude(--output-format
-        stream-json)가 프롬프트 전(live_label 없음) 빈 카드로 잔존한다 → live_pid
-        에 SIGTERM(graceful) + sessions prune + dismiss tombstone(LIVE_DISMISS_TTL
+        stream-json)가 프롬프트 전 빈 카드로 잔존한다 → live_pid 에
+        SIGTERM(graceful) + sessions prune + dismiss tombstone(LIVE_DISMISS_TTL
         내 재등록 차단). titled live·dashboard 세션은 절대 건드리지 않는다(오살 방지).
+
+        ⚠️ Issue359 (2026-08-07): "title 없음" 판정이 `live_label` 단독이라
+        Zed·터미널 세션을 **구조적으로 전부** 빈 세션으로 오판했다(그 둘은 ai-title
+        이 없고 label 도 안 실려 와 첫 프롬프트 발췌로만 제목을 얻는다). 클릭 1회에
+        작업 중 세션 7개가 전멸했다. 이제 카드 렌더와 같은 `_live_session_title` 을
+        공유한다 — 제목 소스가 늘어나도 판정이 갈라지지 않는다.
         Issue136 dedup 이 cwd 당 1개로 줄이나, 본 버튼은 살아있는 좀비 자체를 제거해
         부활을 원천 차단한다. 127.0.0.1 trust → 토큰 미요구."""
         client_ip = self.client_address[0] if self.client_address else ""
         if not _ip_allowed(client_ip):
             self._send_json(403, {"error": "localhost only"})
             return
-        # 빈 live 세션 스냅샷 수집 (content_type=="live" + live_label 빈)
+        # 빈 live 세션 스냅샷 수집 — 제목 판정은 카드와 동일한 단일 지점을 쓴다
+        #   (Issue359). ai-title·live_label·첫 프롬프트 중 **하나라도** 있으면
+        #   프롬프트를 받은 작업 세션이므로 보존한다.
         targets = []  # (h, sid, pid)
+        kept = []     # 보존 내역 — 무엇을 왜 안 죽였는지 응답으로 돌려준다
         with sessions_lock:
             snap = list(sessions.items())
+        with projects_lock:
+            proj_snap = dict(projects)
         for (h, sid), entry in snap:
             if not isinstance(entry, dict) or entry.get("content_type") != "live":
                 continue
-            lbl = entry.get("live_label")
-            if isinstance(lbl, str) and lbl.strip():
+            cwd = (proj_snap.get(h) or {}).get("cwd", "")
+            title = _live_session_title(cwd, sid, entry)
+            if title and title.strip():
+                kept.append({"sid": sid, "title": title.strip()[:60],
+                             "origin": _origin_from_caps(entry.get("capabilities") or {})})
                 continue  # titled = 작업 중 세션 → 보존
             targets.append((h, sid, entry.get("live_pid")))
         killed, already_dead = [], []
@@ -5159,18 +5575,24 @@ __WARN__
         if pruned:
             persist_sessions()
         log(f"POST /kill-empty-live — killed={len(killed)} already_dead="
-            f"{len(already_dead)} pruned={pruned}")
+            f"{len(already_dead)} pruned={pruned} kept={len(kept)}")
         self._send_json(200, {
             "status": "ok",
             "killed": killed,
             "killed_count": len(killed),
             "already_dead_count": len(already_dead),
             "pruned": pruned,
+            # Issue359: 보존 내역을 함께 돌려준다. 0 이면 "판정이 또 낡았다" 는
+            #   신호이므로 조용히 전멸하는 대신 즉시 드러난다.
+            "kept_count": len(kept),
+            "kept": kept,
         })
 
     def _handle_reap_orphan_live(self, parsed):
-        """Issue331: origin=zed live 세션 중 orphan(브리지 사망 / idle TTL 초과)을
-        종료·정리한다. 주기 리퍼(_orphan_reaper_loop)와 동일한 판정을 즉시 1회 수행.
+        """Issue331: origin=zed live 세션 중 orphan 을 종료·정리한다.
+        판정 2축 — Zed 가 닫은 스레드(thread-archived, Issue360) + 브리지 사망.
+        주기 리퍼(_orphan_reaper_loop)와 동일한 판정을 즉시 1회 수행.
+        idle-ttl 판정은 2026-08-05 철회됨(살아있는 스레드 오살 — 상단 주석 참조).
         VSCode·터미널 세션은 판정 대상이 아니다(오살 방지). 127.0.0.1 trust."""
         client_ip = self.client_address[0] if self.client_address else ""
         if not _ip_allowed(client_ip):
@@ -5178,7 +5600,7 @@ __WARN__
             return
         summary = _reap_zed_orphans()
         summary["status"] = "ok"
-        summary["idle_ttl"] = ZED_IDLE_TTL
+        summary["policy"] = "thread-archived+bridge-dead"
         self._send_json(200, summary)
 
     def _handle_clear_htm_docs(self, parsed):
@@ -5402,7 +5824,10 @@ __WARN__
                 with projects_lock:
                     p = projects.get(h)
                 token = (p or {}).get("token", "")
-            if token:
+            if path.endswith(".md"):
+                # Issue353_1: md 산출은 md 셸 라우트로 broadcast (/view·/htm-doc 는 302 우회 발생)
+                view_url = "/md-doc?path=" + _u.quote(path)
+            elif token:
                 view_url = (f"/view?cwd={_u.quote(cwd_q)}&token={token}"
                             f"&path={_u.quote(path)}")
             else:
@@ -5492,6 +5917,15 @@ __WARN__
                         if not cur or cur.get("client_id") != cid:
                             break  # 인계됨(evicted) → 스트림 종료
                         cur["last_seen"] = time.time()
+                # Issue378: 모드 자기교정(서버 주도). 쉘이 살아 있는 동안 render_tab_mode 가
+                #   hub-internal 을 벗어나면 이 쉘은 그 순간부터 무효 표면이다 — Issue377 의
+                #   302 는 새 요청에만 걸리므로 여기서 능동 통지하지 않으면 사용자가 수동
+                #   새로고침할 때까지 무효 표면이 살아 tab-open 을 계속 받는다(중복 표면 재발).
+                #   keepalive 편승이라 추가 연결·주기 0, 반응은 최대 15초.
+                if _load_hub_setting().get("render_tab_mode") != "hub-internal":
+                    self.wfile.write(b'event: mode-change\ndata: {"dest": "/hub"}\n\n')
+                    self.wfile.flush()
+                    break   # 클라가 이동한다 → 스트림 유지 불요
                 self.wfile.write(b": keepalive\n\n")
                 self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError, OSError):
@@ -5536,6 +5970,20 @@ __WARN__
         """Issue194: hub 내부 탭 쉘 페이지. 탭 바 + iframe viewport. /hub-events SSE 로
         tab-open 수신 → iframe 탭 생성. tab_close_shortcut 으로 렌더 탭만 닫기(R3)."""
         setting = _load_hub_setting()
+        # Issue377: 역방향 funnel. render_tab_mode 가 표면을 결정한다는 계약은 **양방향**이어야
+        #   하는데 지금까지 `hub-internal → /hub → /hub-shell`(Issue213, _handle_hub) 한쪽만
+        #   있었다. browser-tab 에서 /hub-shell 을 열면 "쓰지 않기로 한 쉘"이 200 으로 뜨고,
+        #   그 쉘이 /hub-events 의 tab-open 을 받아 내부 탭을 만드는 동안 hook 은 같은 모드라
+        #   OS 새 탭도 연다 → 같은 문서가 두 표면에 중복(사용자 혼란 보고).
+        #   → browser-tab 이면 쉘 진입 자체를 /hub 로 되돌려 유효 표면을 1개로 유지한다.
+        #   루프 불가: 두 가드의 조건이 배타(`== hub-internal` vs `!= hub-internal`).
+        #   쿼리는 전달하지 않는다 — `_shell=1` 이 넘어가면 /hub 가 embed 로 오인해 정방향
+        #   가드를 건너뛴다(자기 iframe 용 마커를 top-level 진입에 재사용하게 됨).
+        if setting.get("render_tab_mode") != "hub-internal":
+            self.send_response(302)
+            self.send_header("Location", "/hub")
+            self.end_headers()
+            return
         shortcut = str(setting.get("tab_close_shortcut", "alt+w"))
         single = "true" if setting.get("hub_single_window", True) else "false"
         html = HUB_SHELL_HTML.replace("__SHORTCUT__", json.dumps(shortcut)) \
@@ -5659,8 +6107,135 @@ __WARN__
                 if pruned:
                     persist_sessions()
                     log(f"POST /hook-event — session_end pruned live session hash={h} sid={sid}")
+        # Issue353_3 M3: Stop(턴 종료) 시점에 서버가 **메일박스를 실측해** 이번 턴이
+        #   아카이브 임계를 넘는지 판정하고, 넘으면 최종본 md 를 자동 생성한다.
+        #   판정 주체가 LLM 이 아니라 규칙 엔진이므로 지시문 드리프트가 없다.
+        gate = None
+        if event in ("stop", "session_stop", "turn_end"):
+            sid = str(body.get("sid", "")).strip()
+            if sid:
+                # `..show`/`..text` 턴 단발 오버라이드 — 훅이 실어 보내면 설정보다 우선.
+                # 사용자 의사가 임계 판정을 이긴다(arch G안 오버라이드 규약).
+                override = str(body.get("render_override", "")).strip().lower()
+                if override not in ("show", "text"):
+                    override = ""
+                gate = self._archive_turn_if_over_threshold(cwd, sid, override)
         log(f"POST /hook-event — event={event} cwd={cwd} (feed={count})")
-        self._send_json(200, {"status": "ok", "count": count})
+        out = {"status": "ok", "count": count}
+        if gate:
+            out["gate"] = gate
+        self._send_json(200, out)
+
+    def _archive_turn_if_over_threshold(self, cwd: str, sid: str, override: str = ""):
+        """Issue353_3 M3: 턴 종료 시 게이트 판정 + 임계 초과 시 아카이브 md 생성.
+
+        게이트 재료는 **메일박스 실측**이다(M2 전제). 이번 턴 범위는 마지막 `turn`
+        블록 이후의 블록들이며, 그 안의 assistant 텍스트만 분량·리치 요소 판정에 쓴다.
+
+        표시 모드별 효과(arch 1.2):
+        * `live-tab`  — 라이브 뷰는 이미 상시 표시 중이므로 게이트는 **아카이브 생성
+          여부**만 정한다.
+        * `browser-tab` — 임계를 넘은 **이 시점에** 문서를 만들고 그 URL 을 돌려준다
+          (턴 시작 일괄 오픈 없음 → 선오픈·후생략 모순이 생기지 않는다).
+
+        실패는 전부 fail-soft 다 — 아카이브가 없다고 사용자의 턴이 막히면 안 된다.
+        """
+        try:
+            path = _resolve_session_jsonl(cwd, sid)
+            if not path:
+                return None
+            box = mailbox.get_box(cwd_hash(cwd), sid, path)
+            if box.changed():
+                box.sync()
+            blocks = list(box.blocks)
+            # 이번 턴 = 마지막 turn 마커 이후
+            last_turn_idx = -1
+            for i in range(len(blocks) - 1, -1, -1):
+                if blocks[i].get("kind") == "turn":
+                    last_turn_idx = i
+                    break
+            turn_blocks = blocks[last_turn_idx + 1:] if last_turn_idx >= 0 else blocks
+            question = blocks[last_turn_idx]["text"] if last_turn_idx >= 0 else ""
+            setting = _load_hub_setting()
+            level = setting.get("auto_render", "page")
+            decision = render_gate.decide(turn_blocks, level,
+                                          created_docs=self._turn_doc_count(cwd),
+                                          override=override)
+            result = {"render": decision["render"], "reason": decision["reason"],
+                      "level": decision["level"], "lines": decision["metrics"]["lines"]}
+            if not decision["render"]:
+                log(f"POST /hook-event — gate skip ({decision['reason']}) cwd={cwd}")
+                return result
+            out = self._write_turn_archive(cwd, sid, question, turn_blocks)
+            if out:
+                result["archive"] = out
+                log(f"POST /hook-event — gate archive ({decision['reason']}): {out}")
+            return result
+        except Exception as e:                     # fail-soft — 턴을 막지 않는다
+            log(f"POST /hook-event — gate failed (무시): {e}", "WARNING")
+            return None
+
+    def _turn_doc_count(self, cwd: str) -> int:
+        """`doc` 단계 재료 — 이번 턴에 생성·갱신된 문서 산출물 수(최근 5분 내 registry).
+
+        registry 는 생산자가 `register-doc` 로 등록한 것만 담으므로, 여기서 세는 것은
+        **hub 에 노출된 산출물**이다. 임의 파일 생성을 훑지 않는다(권한·성능 양쪽 이유).
+        """
+        try:
+            now = time.time()
+            with registry_lock:
+                entries = load_registry(HTM_REGISTRY)
+            n = 0
+            for e in entries:
+                if e.get("cwd") != cwd:
+                    continue
+                p = e.get("path") or ""
+                try:
+                    if p and os.path.isfile(p) and now - os.path.getmtime(p) < 300:
+                        n += 1
+                except OSError:
+                    continue
+            return n
+        except Exception:
+            return 0
+
+    def _write_turn_archive(self, cwd: str, sid: str, question: str, blocks) -> str:
+        """턴 최종본을 md 아카이브로 저장하고 `/register-doc` 와 같은 경로로 등록.
+
+        경로·파일명은 htm 수명주기 규약을 그대로 따른다(`_doc_work/htm/hub_htm_*`) —
+        `doc-work-archive` 스킬의 age·keep-N 정리 대상에 자동으로 포함되기 위해서다.
+        별도 수명주기를 만들면 정리되지 않는 파일 더미가 생긴다.
+        """
+        texts = [b.get("text", "") for b in blocks if b.get("kind") == "text"]
+        if not texts:
+            return ""
+        out_dir = os.path.join(cwd, "_doc_work", "htm")
+        if not os.path.isdir(out_dir):
+            return ""      # htm 폴더가 없는 프로젝트 — 생성하지 않는다(pm-check 소관)
+        # 파일명 유일성 — 초 단위 timestamp 만으로는 같은 초에 끝난 두 턴이 같은 이름을
+        # 얻어 앞의 것이 덮인다. seq 는 **세션별** 카운터라 세션이 다르면 또 겹치므로
+        # (실측: 두 픽스처 세션이 나란히 seq=2) sid 조각까지 넣어야 유일해진다.
+        ts = time.strftime("%Y%m%d_%H%M%S")
+        last_seq = blocks[-1].get("seq", 0) if blocks else 0
+        sid_frag = re.sub(r"[^A-Za-z0-9]", "", sid)[:8] or "sess"
+        name = f"hub_htm_{ts}_a_turn-{sid_frag}-{last_seq}.md"
+        path = os.path.join(out_dir, name)
+        title = (question or "세션 턴 기록").strip().replace("\n", " ")[:80]
+        head = (f"---\ntitle: {title}\nsid: {sid}\n---\n\n"
+                f"> 이 문서는 hub 서버가 턴 종료 시 자동 생성한 아카이브입니다"
+                f" (Issue353_3 렌더 게이트).\n\n")
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(head + "\n\n".join(texts) + "\n")
+        except OSError as e:
+            log(f"gate archive write failed: {e}", "WARNING")
+            return ""
+        with registry_lock:
+            entries = [e for e in load_registry(HTM_REGISTRY) if e.get("path") != path]
+            entries.append({"path": path, "cwd": cwd, "title": title,
+                            "registered_at": time.time(), "sid": sid})
+            save_registry(HTM_REGISTRY, entries)
+        return path
 
     def _handle_feed_clear(self, parsed):
         """활동 피드 비우기 — feed_buffer deque + hook-feed.json 디스크 영속 모두 반영.
@@ -7026,12 +7601,12 @@ pre {{ background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto;
         Bash heredoc·스크립트 생성 경로에서 발동하지 않아 생기는 영구 403 을 서버가 흡수한다.
 
         허용 조건(전부 충족해야 등록 — 화이트리스트 보안 모델 유지):
-          1. 실존 일반 파일 + 확장자 .htm/.html
+          1. 실존 일반 파일 + 확장자 .htm/.html/.md (Issue353_1: md-first 산출 포함)
           2. 부모 폴더가 canonical htm 출력 폴더 (`_doc_work/{htm,z_done/htm,z_htm}`) 또는 TMP_OUT_DIR
           3. 파일명이 htm 출력 규약(`hub_htm_*` / legacy `claude-htm-*`) 준수
           4. HTM_CLEARED tombstone 에 없음 — 사용자가 명시 제거한 문서는 부활시키지 않음
         임의 경로 노출은 2·3 이 막고, 사용자 의사(clear)는 4 가 존중한다."""
-        if not os.path.isfile(abs_path) or not abs_path.endswith((".htm", ".html")):
+        if not os.path.isfile(abs_path) or not abs_path.endswith((".htm", ".html", ".md")):
             return False
         if not _htm_output_stem(os.path.basename(abs_path)):
             return False
@@ -7103,6 +7678,12 @@ pre {{ background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto;
                 return
         # Issue102: htm 스킬(Issue123)이 .htm 확장자로 문서를 씀 → .html/.htm 모두 허용
         if not abs_path.endswith((".html", ".htm")):
+            # Issue353_1: md 산출이 /htm-doc URL 로 들어오면 md 셸 경로로 안내(링크 호환)
+            if abs_path.endswith(".md"):
+                self.send_response(302)
+                self.send_header("Location", "/md-doc?path=" + quote(abs_path))
+                self.end_headers()
+                return
             self._send_json(403, {"error": "extension not allowed"})
             return
         # Issue201/Issue202: hub-internal 모드에서 최상위 직접 열람(주소창/링크/새 탭)은 raw 문서
@@ -7167,6 +7748,99 @@ pre {{ background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto;
         body = _inject_before_body_end(body, HUB_LINK_SHIM)
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _handle_md_doc(self, parsed):
+        """Issue353_1 (arch A안 md-first): registry 등록 `.md` 를 서버 고정 셸로 렌더 serve.
+
+        보안 모델은 `/htm-doc` 와 동일 등급 — registry exact-match 화이트리스트
+        (+ canonical 규약 self-heal autoregister) + tombstone + ENOENT moved self-heal.
+        차이는 표장뿐: md 원문을 `md_shell` 템플릿(JSON 임베드 + DOMPurify sanitize +
+        CSP nonce)에 실어 반환한다. LLM 이 HTML 을 쓰지 않으므로 헤더·CSS 드리프트
+        실패 클래스가 구조적으로 소멸한다."""
+        qs = parse_qs(parsed.query)
+        rel = (qs.get("path") or [""])[0]
+        if not rel:
+            self._send_json(400, {"error": "missing path"})
+            return
+        abs_path = os.path.realpath(rel)
+        with registry_lock:
+            reg = load_registry(HTM_REGISTRY)
+        reg_paths = set()
+        for e in reg:
+            p = e.get("path") or ""
+            if p:
+                reg_paths.add(p)
+                reg_paths.add(os.path.realpath(p))
+        if abs_path not in reg_paths and rel not in reg_paths:
+            if not self._htm_doc_autoregister(abs_path):
+                log(f"GET /md-doc — unregistered path rejected: {abs_path}")
+                self._send_json(403, {"error": "not a registered md doc"})
+                return
+        if not abs_path.endswith(".md"):
+            self._send_json(403, {"error": "extension not allowed"})
+            return
+        try:
+            with open(abs_path, encoding="utf-8", errors="replace") as f:
+                md_text = f.read()
+        except FileNotFoundError:
+            with registry_lock:
+                cleared = set(load_registry(HTM_CLEARED))
+            moved = self._htm_resolve_moved(abs_path, cleared)
+            if not moved:
+                self._send_json(404, {"error": "file not found"})
+                return
+            try:
+                with open(moved, encoding="utf-8", errors="replace") as f:
+                    md_text = f.read()
+            except OSError:
+                self._send_json(404, {"error": "file not found"})
+                return
+            log(f"GET /md-doc — self-heal {abs_path} -> {moved}")
+            self._htm_registry_rewrite({abs_path, rel}, moved)
+            abs_path = moved
+        title = self._extract_html_title(abs_path) or os.path.basename(abs_path)
+        # 헤더 📁 배지용 프로젝트 — registry cwd 우선, 없으면 `_doc_work/` 앞부분에서 유추
+        proj_cwd = ""
+        for e in reg:
+            if os.path.realpath(e.get("path") or "") == abs_path:
+                proj_cwd = e.get("cwd") or ""
+                break
+        if not proj_cwd:
+            norm = abs_path.replace(os.sep, "/")
+            if "/_doc_work/" in norm:
+                proj_cwd = norm[:norm.index("/_doc_work/")]
+        label = project_meta(proj_cwd)["name"] if proj_cwd else "system/___pm-tmp"
+        self._send_md_html(md_text, title, abs_path, proj_cwd, label)
+
+    def _send_md_html(self, md_text: str, title: str, abs_path: str,
+                      proj_cwd: str = "", proj_label: str = ""):
+        """md 문서 serve 파이프라인 — 셸 생성 + `/htm-doc` 공통 shim 주입 + CSP.
+
+        shim(닫기·링크 복사 등)은 `_send_htm_html` 와 같은 세트를 재사용하되, CSP 가
+        nonce 없는 인라인 스크립트를 차단하므로 마지막에 서버 유래 인라인 `<script>`
+        전부에 nonce 를 부여한다. 이 시점의 모든 `<script>` 는 서버 템플릿·shim 산출이다
+        — md 저작 내용은 JSON 문자열로만 실려 serve 시점 태그가 될 수 없다(md_shell 참조).
+        mermaid 는 셸이 클라이언트 렌더 시점에 처리하므로 `_normalize_mermaid_runtime`
+        는 태우지 않는다(코드펜스가 HTML 에 없어 no-op 이기도 함)."""
+        nonce = md_shell.make_nonce()
+        body = md_shell.render_md_shell(md_text, title, abs_path, nonce,
+                                        proj_cwd, proj_label)
+        # 셸이 canonical <header> 를 직접 갖고 CSS 는 htm 과 같은 정규화기가 붙인다
+        # (헤더 표현이 두 경로에서 갈리지 않도록 — 셸 1벌 원칙의 CSS 판).
+        body = _normalize_hub_header_css(body)
+        body = _normalize_hub_body_css(body)
+        body = _inject_before_body_end(body, CLOSE_SHIM)
+        body = _inject_before_body_end(body, COPY_LINK_SHIM)
+        if _load_hub_setting()["live_session_copy_button"]:
+            body = _inject_before_body_end(body, SID_COPY_SHIM)
+        body = _inject_before_body_end(body, HUB_LINK_SHIM)
+        body = body.replace(b"<script>", b'<script nonce="' + nonce.encode("ascii") + b'">')
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Security-Policy", md_shell.csp_header(nonce))
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -7355,6 +8029,12 @@ pre {{ background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto;
             return
         # Issue102: htm 스킬(Issue123)이 .htm 확장자로 문서를 씀 → .html/.htm 모두 허용
         if not abs_path.endswith((".html", ".htm")):
+            # Issue353_1: 토큰 라우트로 md 가 오면 md 셸로 위임 (registry 게이트는 저쪽이 재검)
+            if abs_path.endswith(".md"):
+                self.send_response(302)
+                self.send_header("Location", "/md-doc?path=" + quote(abs_path))
+                self.end_headers()
+                return
             self._send_json(403, {"error": "extension not allowed"})
             return
         try:
@@ -8452,6 +9132,10 @@ pre {{ background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto;
             self._send_json(400, {"error": "invalid sid"})
             return
         is_data = len(parts) >= 4 and parts[3] == "data"
+        # Issue353_2 M2-b: /s/{h}/{sid}/mail?since= — 메일박스 pull
+        is_mail = len(parts) >= 4 and parts[3] == "mail"
+        # Issue353_2 M2-c: /s/{h}/{sid}/live — 라이브 셸(md-first 셸 재사용)
+        is_live = len(parts) >= 4 and parts[3] == "live"
         # cwd_hash 로 cwd 회수
         with projects_lock:
             p = projects.get(cwd_h)
@@ -8463,6 +9147,12 @@ pre {{ background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto;
         token = get_token_param(parsed)
         if not token or not hmac.compare_digest(expected, token):
             self._send_json(401, {"error": "invalid token"})
+            return
+        if is_mail:
+            self._handle_session_mail(parsed, cwd_h, sid, cwd)
+            return
+        if is_live:
+            self._handle_session_live(parsed, cwd_h, sid, cwd, token, p)
             return
         if is_data:
             with sessions_lock:
@@ -8533,6 +9223,209 @@ pre {{ background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto;
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _handle_live_url(self, parsed):
+        """Issue356_1: `GET /live-url?cwd=&sid=` → 라이브 뷰 URL + 표시 모드.
+
+        훅(prj3#Issue341)이 턴 시작에 라이브 뷰를 열려면 `cwd_hash`·token 이 필요한데,
+        그것을 **훅이 `tokens.json` 을 직접 파싱해 얻게 하면 상태 파일 포맷에 결합**된다.
+        포맷이 바뀌는 순간 훅이 조용히 깨지므로, 서버가 조립해 돌려준다.
+
+        localhost trust(다른 로컬 endpoint 와 동일 등급) — 반환하는 token 은 그 프로젝트가
+        이미 `/register` 로 발급받은 값이고, 이 응답이 새 권한을 만들지 않는다.
+
+        응답: `{url, display, ready}` — `ready` 는 transcript 가 실제로 존재하는가다.
+        훅은 `ready:false` 면 열지 않고 조용히 기존 경로로 간다(빈 뷰를 띄우지 않는다).
+        """
+        client_ip = self.client_address[0] if self.client_address else ""
+        if not _ip_allowed(client_ip):
+            self._send_json(403, {"error": "localhost only"})
+            return
+        qs = parse_qs(parsed.query)
+        cwd = (qs.get("cwd") or [""])[0]
+        sid = (qs.get("sid") or [""])[0]
+        if not cwd or not sid:
+            self._send_json(400, {"error": "cwd and sid required"})
+            return
+        if not re.fullmatch(r"[a-zA-Z0-9_-]+", sid):
+            self._send_json(400, {"error": "invalid sid"})
+            return
+        cwd = os.path.abspath(os.path.expanduser(cwd))
+        h = cwd_hash(cwd)
+        with projects_lock:
+            p = projects.get(h)
+        if not p:
+            self._send_json(404, {"error": "project not registered"})
+            return
+        token = p.get("token", "")
+        if not token:
+            self._send_json(404, {"error": "project has no token"})
+            return
+        setting = _load_hub_setting()
+        display, warn = render_gate.normalize_display(setting.get("render_display", "auto"))
+        if warn:
+            log(f"GET /live-url — {warn}", "WARNING")
+        # 강등이 보고된 세션은 훅에게 archive 를 돌려준다(다음 턴부터 문서 경로)
+        if display != "archive" and self._live_degraded(h, sid):
+            display = "archive"
+        ready = bool(_resolve_session_jsonl(cwd, sid))
+        self._send_json(200, {
+            "url": f"http://{HOST}:{PORT}/s/{h}/{sid}/live?token={token}",
+            "display": display,
+            "ready": ready,
+        })
+
+    # Issue356_1: 브라우저가 보고한 열화 강등 세션 (프로세스 메모리 — 재기동 시 초기화)
+    _live_degraded_set = set()
+    _live_degraded_lock = threading.Lock()
+
+    def _live_degraded(self, cwd_h: str, sid: str) -> bool:
+        with Handler._live_degraded_lock:
+            return (cwd_h, sid) in Handler._live_degraded_set
+
+    def _handle_session_degrade(self, parsed, cwd_h: str, sid: str):
+        """Issue356_1: `POST /s/{h}/{sid}/degrade` — 브라우저의 열화 강등 통보.
+
+        라이브 탭이 스스로 물러났다는 사실을 서버가 알아야 **다음 턴에 훅이 또
+        라이브 뷰를 열지 않는다**. 모르면 매 턴 같은 열화를 반복한다.
+        상태는 메모리에만 둔다 — 새로고침으로 회복 가능한 일시 상태이고, 서버가
+        재기동되면 다시 시도해 보는 편이 맞다.
+        """
+        body, err = self._read_json_body()
+        reason = (body or {}).get("reason", "") if not err else ""
+        with Handler._live_degraded_lock:
+            Handler._live_degraded_set.add((cwd_h, sid))
+        log(f"POST /s/{cwd_h}/{sid}/degrade — 라이브 강등 보고: {reason}")
+        self._send_json(200, {"status": "ok"})
+
+    def _handle_session_mail(self, parsed, cwd_h: str, sid: str, cwd: str):
+        """Issue353_2 M2-b: `GET /s/{h}/{sid}/mail?since=<seq>&epoch=<gen>&token=`.
+
+        메일박스 pull 엔드포인트. 인가는 상위 라우트가 이미 마쳤다(세션 token 32hex
+        + source-IP allowlist) — 라이브 뷰는 **새 인가 체계를 만들지 않는다**.
+
+        응답 규약:
+        * `304` — 신규 블록 없음. 무변경 poll 은 stat 1회 + 정수 비교로 끝나고
+          파일을 읽지 않는다(폴링 비용 상한).
+        * `205` — 세대 불일치·보유 범위 밖 커서. 클라가 DOM 을 비우고 재동기화한다.
+        * `200` — `{epoch, max_seq, min_seq, turn_active, blocks:[…]}`
+        """
+        path = _resolve_session_jsonl(cwd, sid)
+        if not path:
+            self._send_json(404, {"error": "transcript not found"})
+            return
+        qs = parse_qs(parsed.query)
+        try:
+            since = int((qs.get("since") or ["0"])[0])
+        except ValueError:
+            since = 0
+        epoch = (qs.get("epoch") or [""])[0]
+        # Issue357: TTL 지난 메일박스 정리 — 간격 내 호출은 비교 1회(전수 스캔 없음).
+        #   별도 타이머를 두지 않는 이유는 메일박스가 **라이브 뷰를 볼 때만** 생기기 때문이다.
+        mailbox.maybe_gc()
+        box = mailbox.get_box(cwd_h, sid, path)
+        # 변경이 있을 때만 파일을 읽는다 — 무변경 poll 은 여기서 stat 1회로 끝난다
+        if box.changed():
+            box.sync()
+        status, payload = box.read_since(since, epoch)
+        # Issue353_2 M2-d: 미응답 폼은 블록과 별개 축이다(응답되면 사라지는 상태) →
+        #   증분이 아니라 **매 응답에 현재 상태**로 싣는다. 304 일 때도 폼 상태만 바뀔 수
+        #   있으므로, 폼이 있으면 304 대신 200 으로 승격해 클라가 카드를 띄우게 한다.
+        pending = self._pending_ask_form(cwd)
+        if status == 304:
+            if pending and pending.get("form_ts") != (qs.get("form") or [""])[0]:
+                status = 200
+                payload = {"epoch": box.epoch, "max_seq": box.max_seq,
+                           "min_seq": box.min_seq, "turn_active": box.turn_active,
+                           "blocks": []}
+            else:
+                self.send_response(304)
+                self.send_header("X-Mail-Epoch", payload.get("epoch", ""))
+                self.send_header("X-Mail-Max-Seq", str(payload.get("max_seq", 0)))
+                self.end_headers()
+                return
+        if status == 200:
+            payload["pending_form"] = pending
+        self._send_json(status, payload)
+
+    def _pending_ask_form(self, cwd: str):
+        """Issue353_2 M2-d: 이 프로젝트의 **미응답 b모드 폼** 최신 1건.
+
+        멱등은 이 함수가 만들지 않는다 — 기존 `/answer` 경로가 registry 엔트리에
+        `answered` 를 마킹하는 **1회 소비**가 유일한 중재자다(Issue45). 라이브 뷰는
+        표시 표면을 하나 더 얹을 뿐이므로, 터미널·다른 탭에서 먼저 응답하면 다음
+        poll 에서 이 값이 `None` 이 되어 카드가 사라진다(first-submit-wins 자동 성립).
+        """
+        import urllib.parse as _u
+        try:
+            with registry_lock:
+                entries = load_registry(HTM_REGISTRY)
+        except Exception:
+            return None
+        cand, cand_ts = None, -1
+        for e in entries:
+            if e.get("cwd", "") != cwd or e.get("answered"):
+                continue
+            base = os.path.basename(e.get("path", ""))
+            if not (base.startswith("claude-htm-ask-") or "_b_" in base):
+                continue
+            m = re.search(r"(\d{9,})", base)
+            ts = int(m.group(1)) if m else 0
+            if ts > cand_ts:
+                cand, cand_ts = e, ts
+        if cand is None:
+            return None
+        path = cand.get("path", "")
+        if not path or not os.path.isfile(path):
+            return None
+        # 10분(Claude polling timeout) 넘긴 폼은 이미 죽은 질문 — 카드로 띄우지 않는다
+        try:
+            if time.time() - os.path.getmtime(path) > 600:
+                return None
+        except OSError:
+            return None
+        return {
+            "form_ts": str(cand_ts),
+            "title": cand.get("title") or os.path.basename(path),
+            # iframe 임베드라 `_shell=1` 를 붙여 top-level 오인 302 를 피한다
+            "url": "/htm-doc?path=" + _u.quote(path) + "&_shell=1",
+        }
+
+    def _handle_session_live(self, parsed, cwd_h: str, sid: str, cwd: str,
+                             token: str, proj: dict):
+        """Issue353_2 M2-c: `GET /s/{h}/{sid}/live?token=` — 라이브 뷰 셸.
+
+        md-first 셸(`md_shell`)의 **같은 CSS·렌더 파이프라인**을 재사용한다 —
+        셸이 2벌이면 스타일 드리프트가 서버 안에서 재발하기 때문이다(arch 셸 1벌 원칙).
+        차이는 본문을 정적 md 로 채우는 대신 폴러가 메일박스에서 블록을 받아
+        **완결 블록만 append** 한다는 점이다.
+        """
+        label = proj.get("name") or project_meta(cwd)["name"]
+        title = _session_ai_title(cwd, sid) or f"라이브 세션 — {label}"
+        nonce = md_shell.make_nonce()
+        setting = _load_hub_setting()
+        display, warn = render_gate.normalize_display(
+            setting.get("render_display", "auto"))
+        if warn:
+            log(f"GET /s/{cwd_h}/{sid}/live — {warn}", "WARNING")
+        body = md_shell.render_live_shell(
+            title, cwd, label, sid, cwd_h, token, nonce,
+            display=display,
+            degrade={"nodes": setting.get("live_degrade_nodes", 12000),
+                     "render_ms": setting.get("live_degrade_render_ms", 400),
+                     "heap_pct": setting.get("live_degrade_heap_pct", 85)})
+        body = _normalize_hub_header_css(body)
+        body = _normalize_hub_body_css(body)
+        body = _inject_before_body_end(body, CLOSE_SHIM)
+        body = _inject_before_body_end(body, COPY_LINK_SHIM)
+        body = _inject_before_body_end(body, HUB_LINK_SHIM)
+        body = body.replace(b"<script>", b'<script nonce="' + nonce.encode("ascii") + b'">')
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Security-Policy", md_shell.csp_header(nonce))
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
@@ -9029,9 +9922,14 @@ a.btn-project-list { text-decoration: none; display: inline-flex; align-items: c
 .pl-table th, .pl-table td { border: 1px solid var(--border); padding: 0.35rem 0.55rem; text-align: left; vertical-align: top; }
 .pl-table th { background: var(--code-bg); position: sticky; top: 0; }
 .pl-table tbody tr { cursor: pointer; }
-.pl-table tbody tr:hover td { background: #e8eef9; }
+/* Issue370: hover 행 전체를 그 프로젝트 색으로. Issue368 로 색이 Map 셀 배경이 된 뒤,
+   기존 파란 hover 는 한 행을 두 색으로 쪼개 보이게 했다. 색은 `<tr>` 의 `--pl-color` 한 곳에
+   싣고 셀은 그것을 읽기만 한다 — 셀마다 인라인을 반복하면 같은 값이 7군데로 흩어진다.
+   색 미지정 프로젝트는 fallback 으로 종전 파란 hover 를 그대로 쓴다. */
+.pl-table tbody tr:hover td { background: var(--pl-color, #e8eef9); }
 .pl-table tbody tr.pl-sel td { background: #d4e2fb; box-shadow: inset 3px 0 0 hsl(220,80%,50%); }
-.pl-table tbody tr.pl-sel:hover td { background: #c7d8f7; }
+/* 선택 행도 hover 는 프로젝트 색 — 선택 표식은 배경이 아니라 좌측 box-shadow 바가 담당한다 */
+.pl-table tbody tr.pl-sel:hover td { background: var(--pl-color, #c7d8f7); }
 .pl-table td.pl-id { font-weight: 700; font-size: 1.15em; text-align: center;
   font-variant-numeric: tabular-nums; background: var(--card); white-space: nowrap; }
 /* htm 자동 모드 off 프로젝트: 번호 셀 회색 배경(gray 10%) */
@@ -9052,8 +9950,19 @@ a.btn-project-list { text-decoration: none; display: inline-flex; align-items: c
 .htm-tgl.off .htm-tgl-knob { left: 0.15em; }
 .htm-tgl:focus-visible { outline: 2px solid #36c; outline-offset: 1px; }
 .pl-table td.pl-path code { font-size: 0.92em; background: var(--code-bg); padding: 0.05rem 0.3rem; border-radius: 3px; }
-.pl-table td.pl-color { text-align: center; }
-.pl-swatch { width: 1.5em; height: 1.5em; border-radius: 4px; border: 1px solid rgba(0,0,0,0.25); display: inline-block; }
+/* Issue368: Project List 마지막 컬럼 = `Map`. 색은 스와치를 없애고 셀 배경으로 내렸다
+   (인라인 style 이라 행 hover/선택 배경보다 우선 — 색이 계속 보인다).
+   아이콘 3단 가시성: 보유 0.85(카드 .issue-map 과 동일) / 미보유 0.22 무채색 / hover 1.0 확대. */
+.pl-table td.pl-map { text-align: center; width: 3em; padding: 0.2rem 0.3rem; }
+.pl-map-ico { display: inline-block; font-size: 1.15em; line-height: 1.4; text-decoration: none;
+  opacity: 0.85; transition: opacity 0.12s, transform 0.12s; }
+.pl-map-ico.none { opacity: 0.22; filter: grayscale(1); cursor: default; }
+/* stale 은 카드(0.5/grayscale .6)보다 덜 흐리게 둔다 — 카드는 한 장을 볼 때의 표식이지만
+   표에서는 바로 아래 행의 '맵 없음'(0.22) 과 나란히 놓이므로, 카드 값 그대로면 두 상태가
+   같은 회색 덩어리로 읽힌다. 판정 자체는 카드와 동일 필드를 쓴다(표현만 다름). */
+.pl-map-ico.stale { filter: grayscale(0.4); opacity: 0.62; }
+.pl-table td.pl-map:hover .pl-map-ico, .pl-map-ico:hover { opacity: 1; filter: none; transform: scale(1.25); }
+.pl-map-ico:focus-visible { outline: 2px solid #36c; outline-offset: 1px; }
 /* Issue42: hub 2-컬럼 — .hub-main(2fr) + .hub-feed(1fr) */
 main { padding: 1.5rem; max-width: 1600px; margin: 0 auto; display: flex; gap: 1rem; align-items: flex-start; }
 .hub-main { flex: 2; min-width: 0; }
@@ -9149,6 +10058,9 @@ main { padding: 1.5rem; max-width: 1600px; margin: 0 auto; display: flex; gap: 1
 /* Issue284: 이슈맵(Issue_map.htm) 바로가기 — 숫자 배지 왼쪽 */
 .card-head .issue-map { text-decoration: none; font-size: 0.95em; line-height: 1; opacity: 0.85; }
 .card-head .issue-map:hover { opacity: 1; transform: scale(1.15); }
+/* Issue363: 맵이 Issue.md 보다 오래됨 — 열리기는 하되 '낡음' 을 시각적으로 고지 */
+.card-head .issue-map.stale { filter: grayscale(0.6); opacity: 0.5; }
+.card-head .issue-map.stale:hover { opacity: 0.85; }
 .live-list { list-style: none; margin: 0; padding: 0; }
 .live-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-top: 1px solid var(--border); }
 .live-item:first-child { border-top: none; }
@@ -9169,10 +10081,16 @@ main { padding: 1.5rem; max-width: 1600px; margin: 0 auto; display: flex; gap: 1
 /* Issue273: 메인 세션 모델 신호등 배지 (🟣 opus / 🔵 sonnet / 🟢 haiku / 🟠 fable) — origin 배지 옆 */
 .live-model { flex-shrink: 0; font-size: 0.78em; line-height: 1; cursor: help; margin-left: -0.25rem; position: relative; }
 /* Issue221: 네이티브 title 툴팁은 브라우저가 지연(~1.5~2.5s) 소유·조정 불가 → data-tip 커스텀 툴팁으로 즉시 표시(지연 0)
-   Issue281: CSS ::after(position:absolute)는 조상 .card{overflow:hidden}에 잘림 → #live-tip(position:fixed, body 직속)로 전환 */
-#live-tip { position: fixed; z-index: 3000; max-width: 270px; background: #222; color: #fff;
-  padding: 3px 8px; border-radius: 5px; font-size: 11px; line-height: 1.3; white-space: nowrap;
+   Issue281: CSS ::after(position:absolute)는 조상 .card{overflow:hidden}에 잘림 → #live-tip(position:fixed, body 직속)로 전환
+   Issue369: nowrap 폐기 — 툴팁이 행 설명·sid 까지 싣게 되어 max-width 를 nowrap 이 무력화하면 화면을 넘는다.
+   pre-line 으로 줄바꿈을 살리고, overflow-wrap:anywhere 로 공백 없는 sid(UUID)도 끊어 접는다 */
+#live-tip { position: fixed; z-index: 3000; max-width: 340px; background: #222; color: #fff;
+  padding: 4px 8px; border-radius: 5px; font-size: 11px; line-height: 1.35;
+  white-space: pre-line; overflow-wrap: anywhere; text-align: left;
   box-shadow: 0 2px 8px rgba(0,0,0,.35); pointer-events: none; font-weight: 400; }
+/* Issue369: 세션 ID 줄 — 본문과 구분되게 모노스페이스·디밍 */
+#live-tip .tip-sid { display: block; margin-top: 2px; opacity: .75; font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 #live-tip[hidden] { display: none; }
 .live-item[data-origin="terminal"] { cursor: pointer; }
 .live-item[data-origin="terminal"]:hover { background: rgba(127,127,127,.12); }
@@ -9440,6 +10358,14 @@ async function reload() {
     const r = await fetch('/boards?_=' + Date.now(), {cache: 'no-store'});
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
+    // Issue378: 표면 자기교정. 모드가 hub-internal 로 바뀌면 이 standalone /hub 는 무효
+    //   표면이 되므로 쉘로 자기이동한다(Issue377 302 는 새 요청에만 걸려 떠 있는 탭 미교정).
+    //   ⚠️ embed 가드 필수 — /hub 는 쉘의 home 탭 iframe(/hub?_shell=1)으로도 로드된다.
+    //   거기서 이동시키면 iframe 안에 쉘이 다시 뜨는 중첩 재귀(Issue203)가 재발한다.
+    if (window.top === window.self && data.render_tab_mode === 'hub-internal') {
+      location.replace('/hub-shell');
+      return;
+    }
     errorBar.style.display = 'none';
     renderProjects(data.projects || []);
     renderLiveSessions(data.live_sessions || [], data.live_session_limit, data.live_session_copy_button);
@@ -9485,30 +10411,35 @@ function renderLiveSessions(list, limit, showCopy) {
   const groups = new Map();
   for (const s of list) {
     const key = s.cwd || s.name;
-    if (!groups.has(key)) groups.set(key, {cwd: s.cwd, name: s.name, color: s.color, emoji: s.emoji, issueMap: false, openIssueCount: 0, items: []});
+    if (!groups.has(key)) groups.set(key, {cwd: s.cwd, name: s.name, color: s.color, emoji: s.emoji, issueMap: false, issueMapStale: false, openIssueCount: 0, items: []});
     const g = groups.get(key);
     g.items.push(s);
     // Issue284: 그룹 내 한 세션이라도 이슈맵 보유면 카드에 🗺️ 노출
     if (s.issue_map) g.issueMap = true;
+    // Issue363: 같은 cwd 라 값은 동일 — 맵이 Issue.md 보다 낡았으면 아이콘을 흐리게
+    if (s.issue_map_stale) g.issueMapStale = true;
     // Issue316: 같은 cwd 세션은 동일 값 — 그대로 그룹에 복사(마지막 세션 값으로 덮여도 동일).
     g.openIssueCount = s.open_issue_count || 0;
   }
   const rowHtml = (s, extraCls) => {
     // Issue66: 큐 dashboard(supervisor_pid 존재)는 graceful remove, 일반은 stop
+    // Issue369: 행 툴팁이 커스텀(#live-tip)으로 바뀐 이상 자식 버튼에 네이티브 title 을 남기면 둘이 겹쳐 뜬다 → 전부 data-tip 통일
     const killBtn = s.pid
       ? (s.supervisor_pid
-          ? `<button class="card-close" onclick="removeQueueDash('${escapeHtml(s.cwd)}','${escapeHtml(s.token)}',${s.supervisor_pid},'${escapeHtml(s.sid)}',this)" title="${escapeHtml(t('liveSessions.removeQueueTitle', {pid: s.supervisor_pid}))}" aria-label="remove">✕</button>`
-          : `<button class="card-close" onclick="stopRunner('${escapeHtml(s.cwd)}','${escapeHtml(s.token)}',${s.pid},this)" title="${escapeHtml(t('liveSessions.killRunnerTitle', {pid: s.pid}))}" aria-label="kill">✕</button>`)
+          ? `<button class="card-close" onclick="removeQueueDash('${escapeHtml(s.cwd)}','${escapeHtml(s.token)}',${s.supervisor_pid},'${escapeHtml(s.sid)}',this)" data-tip="${escapeHtml(t('liveSessions.removeQueueTitle', {pid: s.supervisor_pid}))}" aria-label="remove">✕</button>`
+          : `<button class="card-close" onclick="stopRunner('${escapeHtml(s.cwd)}','${escapeHtml(s.token)}',${s.pid},this)" data-tip="${escapeHtml(t('liveSessions.killRunnerTitle', {pid: s.pid}))}" aria-label="kill">✕</button>`)
       // Issue132: pid 없는 live(claude) 세션 — dismiss 버튼(프로세스 kill 아님, 카드만 제거)
-      : `<button class="card-close" onclick="dismissSession('${escapeHtml(s.cwd)}','${escapeHtml(s.token)}','${escapeHtml(s.sid)}',this)" title="${escapeHtml(t('liveSessions.dismissTitle'))}" aria-label="dismiss">✕</button>`;
+      : `<button class="card-close" onclick="dismissSession('${escapeHtml(s.cwd)}','${escapeHtml(s.token)}','${escapeHtml(s.sid)}',this)" data-tip="${escapeHtml(t('liveSessions.dismissTitle'))}" aria-label="dismiss">✕</button>`;
     // Issue276: 세션 ID 복사 버튼 (X 왼쪽). /cc-session id 없이 hub 에서 바로 sid 확보.
     //   sid 없는 행(가상/집계)은 미표시. 클릭 위임은 closest('button,a') 로 제외되어 행-클릭 미발동.
     const copyBtn = (s.sid && showCopy)
-      ? `<button class="copy-sid" onclick="copySid('${escapeHtml(s.sid)}',this)" title="${escapeHtml(t('liveSessions.copySidTitle'))}" aria-label="copy session id">📋</button>`
+      // Issue369: 네이티브 title 은 커서 바로 아래에 떠 마우스 포인터에 가린다 → data-tip(#live-tip, 버튼 위쪽 고정)로 전환.
+      //   툴팁 2행 = "세션 ID 복사" + 실제 sid. 복사 전에 어떤 세션인지 눈으로 확인 가능.
+      ? `<button class="copy-sid" onclick="copySid('${escapeHtml(s.sid)}',this)" data-tip="${escapeHtml(t('liveSessions.copySidTitle'))}" data-tip-sid="${escapeHtml(s.sid)}" aria-label="copy session id">📋</button>`
       : '';
     // Issue66 Phase 7: 큐 dashboard 에 waiting_approval 항목이 있으면 승인 버튼
     const approveBtn = (s.supervisor_pid && s.waiting_approval_item)
-      ? `<button class="approve-btn" onclick="approveQueueItem('${escapeHtml(s.cwd)}','${escapeHtml(s.token)}','${escapeHtml(s.sid)}','${escapeHtml(s.waiting_approval_item)}',this)" title="${escapeHtml(t('liveSessions.approveTitle', {item: s.waiting_approval_item}))}">▶ ${escapeHtml(s.waiting_approval_item)}</button>`
+      ? `<button class="approve-btn" onclick="approveQueueItem('${escapeHtml(s.cwd)}','${escapeHtml(s.token)}','${escapeHtml(s.sid)}','${escapeHtml(s.waiting_approval_item)}',this)" data-tip="${escapeHtml(t('liveSessions.approveTitle', {item: s.waiting_approval_item}))}">▶ ${escapeHtml(s.waiting_approval_item)}</button>`
       : '';
     // Issue129: 명령(프롬프트) 전 세션은 title 없음 → "-" 표기 (기존 content_type/'response' fallback 폐기)
     const topic = s.title || '-';
@@ -9532,10 +10463,14 @@ function renderLiveSessions(list, limit, showCopy) {
     const modelBadge = modelDot
       ? `<span class="live-model" data-tip="모델: ${escapeHtml(s.model_id || s.model_tier)}">${modelDot}</span>`
       : '';
-    // Issue131: 행 클릭 → 해당 Claude Code 세션 탭 포커스 (data-sid·data-cwd). title 툴팁으로 전체 표시(ellipsis 보완).
+    // Issue131: 행 클릭 → 해당 Claude Code 세션 탭 포커스 (data-sid·data-cwd). 툴팁으로 전체 표시(ellipsis 보완).
     // Issue104: extraCls 로 초과 행에 live-hidden 부여 (접힘 상태 기본 숨김).
+    // Issue369: 행도 네이티브 title → data-tip. 네이티브를 남겨 두면 자식(📋) 위에서도 조상 title 이 커서 옆에 떠
+    //   커스텀 툴팁과 이중으로 겹친다.
+    // Issue373: 행 툴팁에는 sid 를 붙이지 않는다 — sid 병기는 📋(.copy-sid) 의 역할이다.
+    //   제목 hover 는 "무슨 세션인가"(topic)만 알면 되고, 36자 uuid 는 읽히지 않는 소음이다.
     const cls = 'live-item' + (extraCls ? ' ' + extraCls : '');
-    return `<li class="${cls}" data-sid="${escapeHtml(s.sid)}" data-cwd="${escapeHtml(s.cwd)}" data-origin="${origin}" data-url="${escapeHtml(s.url || '')}" title="${escapeHtml(t('liveSessions.topicTitle', {topic: topic}))}">${originBadge}${modelBadge}<span class="live-topic">${escapeHtml(topic)}</span><span class="live-acts">${approveBtn}${copyBtn}${killBtn}</span></li>`;
+    return `<li class="${cls}" data-sid="${escapeHtml(s.sid)}" data-cwd="${escapeHtml(s.cwd)}" data-origin="${origin}" data-url="${escapeHtml(s.url || '')}" data-tip="${escapeHtml(t('liveSessions.topicTitle', {topic: topic}))}">${originBadge}${modelBadge}<span class="live-topic">${escapeHtml(topic)}</span><span class="live-acts">${approveBtn}${copyBtn}${killBtn}</span></li>`;
   };
   const cards = [...groups.values()].map(g => {
     // Issue129/Issue104: limit 초과 시 첫 (lim-1)개는 표시, 초과분은 live-hidden 으로 렌더(잘라내지 않음)
@@ -9558,8 +10493,14 @@ function renderLiveSessions(list, limit, showCopy) {
     // Issue284: 이슈맵 보유 프로젝트만 🗺️ 렌더(미보유는 아이콘 자체 없음 — 빈 아이콘·404 금지).
     //   서버가 cwd 로 경로를 재계산하므로 링크는 cwd 만 전달. 카드 클릭(VSCode 열기)은
     //   위임 핸들러가 closest('button,a') 로 제외하므로 <a> 만으로 충돌 없음.
+    // Issue363: stale(맵이 Issue.md 보다 오래됨) 이면 흐린 아이콘 + 전용 툴팁. 링크는 그대로 —
+    //   낡은 맵도 여는 것이 못 여는 것보다 낫고, 재생성 방법은 툴팁이 안내한다.
+    //   ⚠️ t() 인자는 **리터럴로** 둔다 — test_i18n_parity.py 의 참조 키 스캔이
+    //   `t('네임스페이스.키')` 정규식이라, 삼항을 t() 안에 넣으면 두 키 모두 검사에서 샌다.
+    const mapTitle = g.issueMapStale ? t('liveSessions.issueMapStaleTitle')
+                                     : t('liveSessions.issueMapTitle');
     const mapLink = g.issueMap
-      ? `<a class="issue-map" href="/issue-map?cwd=${encodeURIComponent(g.cwd)}" target="_blank" data-title="${escapeHtml(g.name)} — Issue Map" onclick="return fpmOpenInShell(event,this)" title="${escapeHtml(t('liveSessions.issueMapTitle'))}">🗺️</a>`
+      ? `<a class="issue-map${g.issueMapStale ? ' stale' : ''}" href="/issue-map?cwd=${encodeURIComponent(g.cwd)}" target="_blank" data-title="${escapeHtml(g.name)} — Issue Map" onclick="return fpmOpenInShell(event,this)" title="${escapeHtml(mapTitle)}">🗺️</a>`
       : '';
     return `<div class="card live${expCls}" data-cwd="${escapeHtml(g.cwd)}" title="{T:common.openVscodeTitle}">
       <div class="card-head" style="background:${escapeHtml(g.color)}">
@@ -10464,17 +11405,27 @@ const plBody = document.getElementById('pl-body');
 
 function renderProjectList(list) {
   if (!list.length) { plBody.innerHTML = '<div class="empty">{T:projectList.empty}</div>'; return; }
+  // Issue368: `Map` 셀 — 판정·툴팁·링크 규약을 카드 🗺️ 와 공유한다(같은 서버 필드, 같은 URL).
+  //   미보유도 아이콘 자리를 비우지 않는다 — 카드는 목록이 아니라 "볼 것이 있을 때만" 뜨는
+  //   자리지만, 표에서는 빈 칸이 "맵 없음"인지 "판정 실패"인지 구분되지 않기 때문이다.
+  //   ⚠️ t() 인자는 리터럴 고정 — test_i18n_parity.py 의 참조 키 스캔이 정규식이다.
+  const mapTitleOk = t('liveSessions.issueMapTitle');
+  const mapTitleStale = t('liveSessions.issueMapStaleTitle');
+  const mapTitleNone = t('projectList.mapNone');
   const rows = list.map(p => {
     const off = !!p.htm_off;
     const reason = off ? (p.htm_reason || 'hub off') : t('projectList.reasonOn');
-    return `<tr data-path="${escapeHtml(p.path)}"${off ? ' class="htm-off"' : ''} data-htm-reason="${escapeHtml(reason)}" title="${escapeHtml(t('projectList.rowTitle', {name: p.name}))}">
+    const mapCell = p.issue_map
+      ? `<a class="pl-map-ico${p.issue_map_stale ? ' stale' : ''}" href="/issue-map?cwd=${encodeURIComponent(p.path)}" target="_blank" data-title="${escapeHtml(p.name)} — Issue Map" onclick="return fpmOpenInShell(event,this)" title="${escapeHtml(p.issue_map_stale ? mapTitleStale : mapTitleOk)}">🗺️</a>`
+      : `<span class="pl-map-ico none" title="${escapeHtml(mapTitleNone)}" aria-hidden="true">🗺️</span>`;
+    return `<tr data-path="${escapeHtml(p.path)}"${off ? ' class="htm-off"' : ''}${p.color ? ` style="--pl-color:${escapeHtml(p.color)}"` : ''} data-htm-reason="${escapeHtml(reason)}" title="${escapeHtml(t('projectList.rowTitle', {name: p.name}))}">
     <td class="pl-toggle"><button type="button" class="htm-tgl ${off ? 'off' : 'on'}" data-path="${escapeHtml(p.path)}" role="switch" aria-checked="${off ? 'false' : 'true'}" aria-label="${escapeHtml(t('projectList.toggleAria', {state: off ? 'off' : 'on', name: p.name}))}" title="${escapeHtml(t('projectList.toggleTitle', {reason: reason}))}"><span class="htm-tgl-knob"></span></button></td>
     <td class="pl-id">${escapeHtml(p.id)}</td>
     <td>${escapeHtml(p.emoji || '')} ${escapeHtml(p.name)}</td>
     <td>${escapeHtml(p.domain)}</td>
     <td class="pl-path"><code>${escapeHtml(p.path)}</code></td>
     <td>${escapeHtml(p.desc)}</td>
-    <td class="pl-color">${p.color ? `<span class="pl-swatch" style="background:${escapeHtml(p.color)}" title="${escapeHtml(p.color)}"></span>` : ''}</td>
+    <td class="pl-map"${p.color ? ` style="background:${escapeHtml(p.color)}"` : ''}>${mapCell}</td>
   </tr>`;
   }).join('');
   // 마스터 상태: 전부 on→on, 전부 off→off, 섞임→mixed
@@ -10485,7 +11436,7 @@ function renderProjectList(list) {
   const masterTitle = masterCls === 'mixed' ? t('projectList.masterMixed', {off: offCnt, total: list.length, target: masterTarget})
     : (masterCls === 'on' ? t('projectList.masterAllOn') : t('projectList.masterAllOff'));
   plBody.innerHTML = `<table class="pl-table"><thead><tr>
-    <th class="pl-toggle" title="{T:projectList.toggleColTitle}"><button type="button" id="htm-tgl-all" class="htm-tgl ${masterCls}" data-target="${masterTarget}" role="switch" aria-checked="${masterCls === 'on' ? 'true' : 'false'}" aria-label="{T:projectList.masterAria}" title="${escapeHtml(masterTitle)}"><span class="htm-tgl-knob"></span></button><div class="pl-toggle-lbl">hub</div></th><th>{T:projectList.col.id}</th><th>{T:projectList.col.name}</th><th>Domain</th><th>{T:projectList.col.path}</th><th>{T:projectList.col.desc}</th><th>{T:projectList.col.color}</th>
+    <th class="pl-toggle" title="{T:projectList.toggleColTitle}"><button type="button" id="htm-tgl-all" class="htm-tgl ${masterCls}" data-target="${masterTarget}" role="switch" aria-checked="${masterCls === 'on' ? 'true' : 'false'}" aria-label="{T:projectList.masterAria}" title="${escapeHtml(masterTitle)}"><span class="htm-tgl-knob"></span></button><div class="pl-toggle-lbl">hub</div></th><th>{T:projectList.col.id}</th><th>{T:projectList.col.name}</th><th>Domain</th><th>{T:projectList.col.path}</th><th>{T:projectList.col.desc}</th><th class="pl-map">{T:projectList.col.map}</th>
   </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -10556,6 +11507,9 @@ plBody.addEventListener('click', async (e) => {
     } finally { tgl.disabled = false; }
     return;
   }
+  // Issue368: `Map` 아이콘 링크 클릭은 행 선택으로 새지 않게 한다 — 맵을 여는 동작과
+  //   행 선택은 별개이고, 선택 상태가 바뀌면 footer 안내가 엉뚱하게 갱신된다.
+  if (e.target.closest('a')) return;
   // 행 single-click → 선택만 (하이라이트). VSCode 열기는 더블클릭/버튼.
   const tr = e.target.closest('tr[data-path]');
   if (tr) {
@@ -10859,7 +11813,12 @@ setModal.addEventListener('mouseout', e => { if (e.target.closest('.set-badge, .
 const liveTip = document.getElementById('live-tip');
 function liveTipShow(badge) {
   const tip = badge.getAttribute('data-tip'); if (!tip) return;
-  liveTip.textContent = tip; liveTip.hidden = false;
+  liveTip.textContent = tip;
+  // Issue369: data-tip-sid 가 있으면 세션 ID 를 둘째 줄에 붙인다(모노스페이스·디밍).
+  //   textContent + DOM 조립만 사용 — innerHTML 금지(topic 은 임의 문자열이다).
+  const sid = badge.getAttribute('data-tip-sid');
+  if (sid) { const el = document.createElement('span'); el.className = 'tip-sid'; el.textContent = sid; liveTip.appendChild(el); }
+  liveTip.hidden = false;
   const br = badge.getBoundingClientRect();
   const tw = liveTip.offsetWidth, th = liveTip.offsetHeight, gap = 7;
   let left = br.left + br.width/2 - tw/2;
@@ -10870,8 +11829,12 @@ function liveTipShow(badge) {
   liveTip.style.top = top + 'px';
 }
 function liveTipHide() { liveTip.hidden = true; }
-document.addEventListener('mouseover', e => { const b = e.target.closest('.live-origin[data-tip], .live-model[data-tip], .live-badge[data-tip]'); if (b) liveTipShow(b); });
-document.addEventListener('mouseout', e => { if (e.target.closest('.live-origin[data-tip], .live-model[data-tip], .live-badge[data-tip]')) liveTipHide(); });
+// Issue369: .copy-sid 편입 — 세션 ID 복사 버튼도 같은 커스텀 툴팁을 쓴다(네이티브 title 커서 가림 해소)
+//   .live-item 도 편입 — 행 네이티브 title 이 남아 있으면 버튼 위에서도 커서 옆에 떠 같은 가림이 재발한다
+const LIVE_TIP_SEL = '.live-origin[data-tip], .live-model[data-tip], .live-badge[data-tip], '
+  + '.copy-sid[data-tip], .card-close[data-tip], .approve-btn[data-tip], .live-item[data-tip]';
+document.addEventListener('mouseover', e => { const b = e.target.closest(LIVE_TIP_SEL); if (b) liveTipShow(b); });
+document.addEventListener('mouseout', e => { if (e.target.closest(LIVE_TIP_SEL)) liveTipHide(); });
 document.getElementById('btn-settings').addEventListener('click', openSettings);
 document.getElementById('set-lang').addEventListener('click', e => {
   const b = e.target.closest('button[data-lang]'); if (b) switchLang(b.dataset.lang);
@@ -11426,6 +12389,17 @@ def main():
     HOST = BIND_HOSTS[0]  # primary — self-ip·pid·로그·advertise fallback 기준
     # 개방 모드 = bind 주소 중 하나라도 비루프백 (멀티 bind 일반화).
     _open_mode = any(h not in LOOPBACK_IPS for h in BIND_HOSTS)
+
+    # Issue379: 수신 이름 게이트 산출. 순수 문자열 조립(DNS 불요)이라 bind 이전에 동기 실행해도
+    # 다운타임 증가 0 — allowlist(Issue200/332) 처럼 백그라운드로 미룰 이유가 없다.
+    global KNOWN_HOSTS, HOST_GATE
+    HOST_GATE = bool(_load_hub_setting().get("host_gate", True))
+    KNOWN_HOSTS = _build_known_hosts()
+    if HOST_GATE and KNOWN_HOSTS:
+        log(f"[hostgate] 활성 — KNOWN={sorted(KNOWN_HOSTS)} (IP 리터럴 Host 는 항상 통과)")
+    else:
+        _why = "host_gate=false" if not HOST_GATE else "known 집합 공집합"
+        log(f"[hostgate] 비활성({_why}) — 모든 Host 헤더 허용(종전 동작)")
 
     # allow_server_list 분리: source-IP 게이트는 bind_host 와 독립 토글.
     # 기본 True = Servers.md(check=O) 화이트리스트 + self 허용.
