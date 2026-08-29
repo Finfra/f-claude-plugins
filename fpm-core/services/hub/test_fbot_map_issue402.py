@@ -270,7 +270,8 @@ def main():
 # renderBots 는 서버가 문자열로 들고 있는 JS 라 python 단위테스트로는 닿지 않는다.
 #   Issue400·401 과 같은 방식으로 **서빙되는 소스를 그대로 뽑아** node 로 실행한다.
 #   재구현을 검사하면 회귀를 못 잡으므로 반드시 원문을 쓴다.
-JS_FNS = ("renderBotsIdle", "renderBots", "renderBotGroups", "botCard", "botDetail")
+JS_FNS = ("renderBotsIdle", "renderBots", "renderBotGroups", "botChip",
+          "botCard", "botDetail")
 
 JS_SHIM = r"""
 class El { constructor(id){this.id=id;this._html='';this.style={};this.textContent='';}
@@ -308,7 +309,10 @@ check('🔴 배분 0건인 루트 밑에 하위 봇이 실제로 그려진다',
 check('그룹 헤더에 소속 수·활성 수', h.includes('활성 2/4'));
 check('활성 봇은 카드, 퇴근 봇은 칩',
       (h.match(/class="bot-card"/g)||[]).length === 2 &&
-      (h.match(/class="bot-chip"/g)||[]).length === 7);
+      // Issue405 이후 최근 퇴근 칩은 `bot-chip bot-chip-recent` 다. 이 검사가 묻는 것은
+      //   "퇴근 봇이 카드가 아니라 칩인가" 이므로 강조 여부와 무관하게 총수를 센다.
+      // `bot-chip-age`(강조 칩 안의 시각 span)까지 세지 않도록 경계를 명시한다.
+      (h.match(/class="bot-chip["\s]/g)||[]).length === 7);
 check('카운트 배지', els['bots-count'].textContent === '2/9');
 check('그룹 헤더에 조직도 링크(별도 어포던스)',
       (h.match(/class="bot-map-link"/g)||[]).length === P.__groups &&
@@ -340,6 +344,27 @@ h = els['bots-grid'].innerHTML;
 check('bots_error 경로에서 조직도도 조용히 죽지 않고 오류를 세운다',
       h.includes('bot-err') && h.includes('disk I/O error') && !h.includes('bot-group'));
 BOTS_ERROR = '';
+
+// Issue405 — 퇴근 칩의 최신성. 같은 렌더 안에 24h 이내·초과를 함께 두어 **경계가
+//   갈라지는지**를 본다. 이 구분이 없어 "방금 퇴근" 과 "두 달 전 퇴근" 이 같은 칩이었다.
+const NOW = Math.floor(Date.now()/1000);
+//   픽스처 원장 때문에 일부 봇엔 이미 last_seen 이 있다 — 사본에서 걷어내고 두
+//   건만 심어야 "경계가 가르는가" 를 단독으로 볼 수 있다.
+const ros2 = P.bots_roster.map(m => { const c = Object.assign({}, m); delete c.last_seen; return c; });
+const outs = ros2.filter(m => !m.active);
+outs[0].last_seen = NOW - 3600;          // 1시간 전 — 최근
+outs[1].last_seen = NOW - 3 * 86400;     // 3일 전 — 오래됨
+renderBots(P.bots, P.bots_total, P.bots_today, ros2);
+h = els['bots-grid'].innerHTML;
+check('24h 이내 퇴근만 강조 칩',
+      (h.match(/class="bot-chip bot-chip-recent"/g)||[]).length === 1);
+check('강조 칩에 상대시각 동반', h.includes('전 퇴근') && h.includes('bot-chip-age'));
+check('24h 초과분은 상대시각 없이 기존 칩',
+      (h.match(/class="bot-chip"/g)||[]).length === outs.length - 1);
+check('24h 초과여도 툴팁에 마지막 실행을 남긴다(정보 손실 금지)',
+      h.includes('마지막 실행'));
+check('last_seen 없는 퇴근 봇은 툴팁도 만들지 않는다',
+      (h.match(/마지막 실행/g)||[]).length === 2);
 
 check('루트가 명부에 없어도 그룹은 남는다(멤버 증발 금지)',
       (renderBots([], 1, {}, [{bot_id:'z', title:'유령상사', role:'exec', state:'checkout',
@@ -374,6 +399,18 @@ check('지도 링크의 Enter 는 아코디언이 가로채지 않는다', openB
 
 console.log('__RESULT__ ' + PASS + ' ' + FAIL);
 """
+
+
+def _grab_line(src, prefix):
+    """원문에서 상수 선언 한 줄을 그대로 뽑는다 (Issue405).
+
+    shim 에 값을 복제하지 않는 이유는 함수를 원문에서 뽑는 이유와 같다 — 재구현을
+    검사하면 24h 경계가 원문에서 갈려도 테스트가 통과해 버린다.
+    """
+    for line in src.splitlines():
+        if line.strip().startswith(prefix):
+            return line.strip()
+    raise AssertionError(f"상수 미발견: {prefix}")
 
 
 def _grab_js(src, name):
@@ -421,6 +458,7 @@ def _run_js_checks():
         js = ("const I18N = " + json.dumps(ko, ensure_ascii=False) + ";\n"
               + "const P = " + json.dumps(payload, ensure_ascii=False) + ";\n"
               + JS_SHIM
+              + _grab_line(src, "const BOT_RECENT_SEC") + "\n"
               + "\n".join(_grab_js(src, n) for n in JS_FNS) + "\n"
               + JS_CHECKS.replace("BIND_SRC;", _grab_iife(src, "bindBotToggle")))
         path = os.path.join(tmp, "check.js")

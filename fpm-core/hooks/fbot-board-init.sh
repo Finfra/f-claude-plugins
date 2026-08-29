@@ -23,7 +23,14 @@ FORCE=0
 TOPIC="bots"
 OUT_DIR="$HOME/.claude/_doc_work/htm"          # 전역 싱글턴 — cwd 무관 고정
 DATA_FILE="$OUT_DIR/${TOPIC}.dash.yaml"
-MONITOR="$HOME/.claude/hooks/fbot-board-monitor.sh"
+# 형제 hook 경로 (Issue460 — Issue451 과 같은 결함이 남아 있던 자리)
+#   소비자는 SCAR 를 **플러그인**으로 받으므로 `~/.claude/hooks` 가 존재하지 않는다.
+#   훅 자체는 플러그인 경로에서 정상 발화하는데(env·매뉴얼 주입까지 성공) 그 안에서
+#   부르는 헬퍼만 `~/.claude/hooks` 를 가리켜 **조용히 실패**했다 — fg1 실측:
+#   `SID`·`FBOT_ID` 는 정상 도착하는데 `bind`·`transition` 이 안 먹어 결속·전이가 0.
+#   자기 위치가 곧 형제들의 위치다. 개발 머신(prj3)에서도 같은 값이 나온다.
+_HOOKS_SELF="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+MONITOR="$_HOOKS_SELF/fbot-board-monitor.sh"
 INTERVAL="${FBOT_BOARD_INTERVAL:-10}"          # sec — 사용자 명시 우선(board_policy interval_default=5 상회)
 
 if [[ ! -x "$MONITOR" ]]; then

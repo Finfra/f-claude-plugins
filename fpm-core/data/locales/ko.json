@@ -233,5 +233,7 @@
   "bots.groupCount": "활성 {a}/{n}",
   "bots.mapTitle": "이 핀봇 조직의 위임 관계도 열기 (새 창)",
   "bots.mapAllTitle": "핀봇 조직도 전체 열기 (새 창)",
-  "bots.restTitle": "퇴근 — 조직 구성원이지만 지금은 활동하지 않는다"
+  "bots.restTitle": "퇴근 — 조직 구성원이지만 지금은 활동하지 않는다",
+  "bots.chipCheckout": "{t} 전 퇴근",
+  "bots.chipLastSeen": "마지막 실행 {t}"
 }

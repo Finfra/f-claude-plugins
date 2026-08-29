@@ -206,5 +206,7 @@
   "bots.groupCount": "{a}/{n} active",
   "bots.mapTitle": "Open this bot org's delegation map (new tab)",
   "bots.mapAllTitle": "Open the full bot org chart (new tab)",
-  "bots.restTitle": "Checked out — still org members, just not working now"
+  "bots.restTitle": "Checked out — still org members, just not working now",
+  "bots.chipCheckout": "checked out {t} ago",
+  "bots.chipLastSeen": "last run {t}"
 }

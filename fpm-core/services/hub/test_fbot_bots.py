@@ -230,6 +230,84 @@ def main():
         check("learn job 미집계 (done)", td["done"] == 2)
         check("learn job 미집계 (last_ts 는 fbot job 최댓값)", td["last_ts"] == noon)
 
+    # 12) Issue404 ⓒ — "미설치" 와 "설치됐는데 레지스트리를 못 찾는다" 는 갈려야 한다.
+    #     후자까지 조용히 감추면 launchd hub 가 env 없이 떠서 핀봇 섹션을 통째로 잃은
+    #     사고(실발생)가 화면상 "봇이 한 명도 없다" 와 구분되지 않는다.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = os.path.join(tmp, "root")
+        os.makedirs(os.path.join(root, "data", "fbot", "icons"))
+        server.FBOT_AOA_DIR = os.path.join(tmp, "nope")
+        server.FBOT_ROOT = root
+        keep = os.environ.pop("AOA_MEMORY_DIR", None)
+        try:
+            r = server._collect_bots()
+        finally:
+            if keep is not None:
+                os.environ["AOA_MEMORY_DIR"] = keep
+        err = r.get("bots_error") or ""
+        check("설치 흔적 O + DB 부재 → bots_error 노출", bool(err))
+        check("bots_error 에 조회한 경로가 담긴다", "nope" in err)
+        check("env 미설정이면 그 사실을 밝힌다", "AOA_MEMORY_DIR" in err)
+        check("오류여도 봇 0 형태는 유지(카드가 깨지지 않는다)",
+              r["bots"] == [] and r["bots_total"] == 0)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # 진짜 미설치 — data/fbot 자체가 없다. 섹션을 띄우지 않는 것이 옳다.
+        server.FBOT_AOA_DIR = os.path.join(tmp, "nope")
+        server.FBOT_ROOT = tmp
+        check("미설치(흔적 없음) 는 오류가 아니다", "bots_error" not in server._collect_bots())
+
+    # 13) Issue405 — 퇴근 봇의 **마지막 실행 시각**. 이 필드가 없어 5분 전 퇴근과 두 달
+    #     전 퇴근이 같은 칩으로 그려졌다.
+    with tempfile.TemporaryDirectory() as tmp:
+        aoa = build_fixture(tmp)
+        now = int(time.time())
+        con = sqlite3.connect(os.path.join(aoa, "registry.db"))
+        con.executescript(JOB_SCHEMA)
+        # job 기록이 하나도 없는 퇴근 봇 — 없는 시각을 지어내면 안 된다.
+        con.execute("INSERT INTO bot VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    ("b-idle", "무기록봇", "qa", "checkout", "수습",
+                     None, "", None, "", None, None, now))
+        con.executemany(
+            "INSERT INTO job VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            [
+                # 퇴근봇 — 최신 2시간 전. store 가 '' 로 갈린 구건도 함께 둔다.
+                ("j1", "fbot", "fbot_session", "done", "{}", "", 0, "b-out", None, None, now - 7200),
+                ("j0", "", "fbot_session", "done", "{}", "", 0, "b-out", None, None, now - 99999),
+                # 활성 봇도 원장에는 있지만 roster 에 실리면 안 된다(소비처 없음).
+                ("j2", "fbot", "fbot_session", "done", "{}", "", 0, "b-work", None, None, now - 60),
+                # fbot 이 아닌 kind 는 집계 대상이 아니다 — 섞이면 시각이 최신으로 오염된다.
+                ("j3", "", "learn", "done", "{}", "", 0, "b-out", None, None, now - 1),
+            ])
+        con.commit()
+        con.close()
+        r = server._collect_bots()
+        by = {m["bot_id"]: m for m in r["bots_roster"]}
+        check("퇴근 봇에 last_seen 부여", by["b-out"].get("last_seen") == now - 7200)
+        check("MAX 로 최신 건 선택(오래된 건에 눌리지 않음)",
+              by["b-out"].get("last_seen") != now - 99999)
+        check("fbot 이외 kind 는 집계 제외", by["b-out"].get("last_seen") != now - 1)
+        check("활성 봇에는 last_seen 미부여", "last_seen" not in by["b-work"])
+        check("job 기록 없는 퇴근 봇은 키 자체가 없다", "last_seen" not in by["b-idle"])
+
+    # 14) Issue405 — 24h 경계 판정은 **클라이언트**에 있다. 상수·비교 방향·배선을
+    #     소스에서 뽑아 박제한다: 문구만 바뀌고 판정이 뒤집히는 종류의 회귀를 잡는다.
+    hub_dir = os.path.dirname(os.path.abspath(server.__file__))
+    src = open(os.path.join(hub_dir, "server.py"), encoding="utf-8").read()
+    check("퇴근 칩이 botChip 으로 배선", "rest.map(botChip)" in src)
+    check("24h 상수 존재", "const BOT_RECENT_SEC = 86400;" in src)
+    check("경계 비교 방향(24h 미만 = 최근)",
+          "const fresh = (Date.now() / 1000 - ts) < BOT_RECENT_SEC;" in src)
+    check("24h 초과분은 상대시각을 붙이지 않는다", "if (!fresh) return" in src)
+    check("기록 없으면 시각을 지어내지 않는다", "if (!ts) return" in src)
+    check("최근 퇴근 칩 전용 클래스", ".bot-chip-recent" in src)
+    for key in ("bots.chipCheckout", "bots.chipLastSeen"):
+        check(f"{key} 사용", key in src)
+        for loc in ("ko", "en"):
+            lp = os.path.join(os.path.dirname(os.path.dirname(hub_dir)),
+                              "data", "locales", f"{loc}.json")
+            check(f"{key} 번역 존재({loc})", key in open(lp, encoding="utf-8").read())
+
     # 11) badge 위젯 icon 스킴 가드 — data:/http(s) 만 <img> 로 렌더한다.
     #     문자열 존재만 보면 가드가 뒤집혀도 통과하므로, JS 소스에서 정규식을 **뽑아
     #     실제로 평가**한다. javascript: 주입이 통과하면 여기서 잡힌다.

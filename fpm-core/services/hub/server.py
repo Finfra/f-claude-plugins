@@ -2417,6 +2417,27 @@ def _fbot_session_counts(con) -> dict:
     return {r[0]: int(r[1]) for r in rows}
 
 
+def _fbot_last_seen(con) -> dict:
+    """열린 registry 커넥션으로 봇별 **마지막 job 시각**(epoch) 집계 (Issue405).
+
+    퇴근 칩의 최신성 판정원이다. `_fbot_today_counts` 의 `last_ts` 는 조직 전체 1건이라
+    "어느 봇이 방금까지 일했나" 에 답하지 못한다 — 5분 전 퇴근과 두 달 전 퇴근이 같은
+    칩으로 그려지던 원인이 이 결손이었다.
+
+    `kind LIKE 'fbot_%'` 인 이유는 `_fbot_today_counts` 와 같다 — 원장의 store 가
+    `'fbot'` 과 `''` 로 갈려 있어 store 필터는 세션 완료분을 통째로 놓친다.
+    실패는 빈 dict (fail-soft) — 여기서 예외를 올리면 봇 카드 전체가 날아간다.
+    """
+    try:
+        rows = con.execute(
+            "SELECT owner, MAX(created_at) FROM job WHERE kind LIKE 'fbot_%'"
+            " AND owner IS NOT NULL AND owner<>'' GROUP BY owner").fetchall()
+    except sqlite3.Error as e:
+        log(f"_fbot_last_seen skipped: {e}", "WARNING")
+        return {}
+    return {r[0]: int(r[1]) for r in rows if r[1]}
+
+
 def _fbot_dispatch_edges(con) -> list:
     """배분 원장(`job.kind='fbot_dispatch'`) → (owner, worker, issue, status, ts) 엣지.
 
@@ -2447,6 +2468,31 @@ def _fbot_dispatch_edges(con) -> list:
     return out
 
 
+def _fbot_missing_db(db: str) -> dict:
+    """레지스트리 파일이 없을 때의 분기 (Issue404 ⓒ).
+
+    ⚠️ **"미설치" 와 "설치됐는데 못 찾는다" 는 화면에서 갈라져야 한다.** 전자는 섹션을
+    조용히 감추는 것이 옳지만, 후자까지 같이 감추면 조용한 실패가 된다 — 실제로
+    launchd 로 뜬 hub 가 `AOA_MEMORY_DIR` 없이 기본 경로를 보다가 핀봇 섹션을 통째로
+    잃었고, `bots_error` 도 로그도 남지 않아 "봇이 한 명도 없다" 와 구분되지 않았다.
+    Issue400 이 없애려던 상황을 환경 변수 하나가 되살린 셈이다.
+
+    판정은 **설치 흔적**으로 한다 — `FBOT_ROOT/data/fbot/` 이 있으면 이 머신에 fbot 이
+    깔려 있다는 뜻이고, 그런데 DB 가 없으면 경로를 잘못 보고 있는 것이다. 개인 경로
+    폴백으로 "찾아주는" 짓은 하지 않는다(prj3#Issue450 이 없앤 것을 되살리게 된다) —
+    여기서 하는 일은 **어긋났다는 사실을 드러내는 것**뿐이다.
+    """
+    empty = {"bots": [], "bots_active": 0, "bots_total": 0}
+    if not os.path.isdir(os.path.join(FBOT_ROOT, "data", "fbot")):
+        return empty          # 진짜 미설치 — 섹션 자체를 띄우지 않는다(범용 배포 요건)
+    env_set = bool(os.environ.get("AOA_MEMORY_DIR"))
+    hint = "" if env_set else " (AOA_MEMORY_DIR 미설정 — 이 프로세스는 기본 경로만 봅니다)"
+    log(f"_collect_bots: fbot 설치 흔적은 있으나 registry.db 부재 — {db}"
+        f" (AOA_MEMORY_DIR={'set' if env_set else 'unset'})", "WARNING")
+    empty["bots_error"] = f"레지스트리를 찾지 못함: {db}{hint}"
+    return empty
+
+
 def _collect_bots() -> dict:
     """registry.db `bot` 테이블 → 홈 봇 카드 payload.
 
@@ -2458,7 +2504,7 @@ def _collect_bots() -> dict:
     """
     db = os.path.join(FBOT_AOA_DIR, "registry.db")
     if not os.path.exists(db):
-        return {"bots": [], "bots_active": 0, "bots_total": 0}
+        return _fbot_missing_db(db)
     try:
         con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=1.0)
         try:
@@ -2469,6 +2515,9 @@ def _collect_bots() -> dict:
             # 같은 커넥션으로 원장까지 읽는다 — 봇 상태와 오늘 실적이 서로 다른 스냅샷을
             #   보면 "전원 퇴근인데 지금 작업중" 같은 자기모순 요약이 나온다 (Issue400)
             today = _fbot_today_counts(con)
+            # Issue405: 봇 상태와 **같은 스냅샷**에서 읽는다 — 커넥션을 새로 열면
+            #   "퇴근인데 마지막 실행이 미래" 같은 자기모순이 원리적으로 가능해진다.
+            last_seen = _fbot_last_seen(con)
         finally:
             con.close()
     except sqlite3.Error as e:
@@ -2513,10 +2562,10 @@ def _collect_bots() -> dict:
     order = {s: i for i, s in enumerate(("working", "checkin", "waiting_input", "waiting_child"))}
     out.sort(key=lambda b: (order.get(b["state"], 9), b["title"]))
     return {"bots": out, "bots_active": len(out), "bots_total": len(rows),
-            "bots_today": today, "bots_roster": _fbot_roster(rows)}
+            "bots_today": today, "bots_roster": _fbot_roster(rows, last_seen)}
 
 
-def _fbot_roster(rows) -> list:
+def _fbot_roster(rows, last_seen=None) -> list:
     """Issue402 ⓑ: 홈 섹션 그룹핑용 **전원 명부**(퇴근 포함).
 
     활성만 보내면 "어느 핀봇 밑에 누가 있나" 가 활성 봇만의 파편이 되어 조직이 안 보인다.
@@ -2549,6 +2598,14 @@ def _fbot_roster(rows) -> list:
                                                  if r["role"] else ""))
                          if is_root else ""),
         })
+    # Issue405: **퇴근 봇에만** 마지막 실행 시각을 싣는다. 활성 봇은 카드가 이미 상태와
+    #   현재 작업을 들고 있어 소비처가 없고, 전원분을 매 폴링 실으면 payload 만 는다
+    #   (아이콘을 루트 봇에만 싣는 것과 같은 판정).
+    for m in roster:
+        if not m["active"]:
+            ts = (last_seen or {}).get(m["bot_id"])
+            if ts:
+                m["last_seen"] = int(ts)
     # 그룹 정렬 — 활성이 있는 조직이 위로, 그 다음 루트 호칭순. 그룹 안에서는 루트가
     #   먼저 오고(그룹 헤더가 쓴다) 나머지는 활동 상태 → 호칭순.
     active_by_root = {}
@@ -11229,6 +11286,10 @@ main { padding: 1.5rem; max-width: 1600px; margin: 0 auto; display: flex; gap: 1
 /* 퇴근 봇 — 조직 구성원이라 지우지 않되, 카드로 세우면 홈이 명부가 된다 */
 .bot-group-rest { display: flex; flex-wrap: wrap; gap: 0.28rem; }
 .bot-chip { font-size: 0.76em; color: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 0.02rem 0.45rem; white-space: nowrap; }
+/* Issue405: 24h 이내 퇴근 — 테두리·본문색만 올린다. 배지를 새로 만들면 활성 카드와
+   경쟁해 "지금 도는 봇" 이 묻힌다. 최신성만 보이면 충분하다. */
+.bot-chip-recent { color: var(--fg); border-color: var(--accent, hsl(220,60%,55%)); }
+.bot-chip-age { opacity: 0.72; }
 .sec-toggle { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--muted); cursor: pointer; font-size: 0.8em; line-height: 1; padding: 0.15rem 0.4rem; flex-shrink: 0; }
 .sec-toggle:hover { background: rgba(127,127,127,.12); color: var(--fg); }
 section.sec-collapsed > .grid { display: none; }
@@ -12039,6 +12100,23 @@ function renderBots(bots, total, today, roster) {
 // Issue402 ⓑ: 루트 봇 단위 그룹. 활성 봇은 기존 카드 그대로 쓰고(Issue401 아코디언
 //   무회귀), 퇴근 봇은 한 줄 칩으로 남긴다 — 조직 구성원이므로 지우지 않되, 카드로
 //   세우면 홈이 명부가 되어 "지금 무슨 일이 도는가" 가 묻힌다.
+// Issue405: 퇴근 칩. 마지막 실행이 24h 이내면 상대시각을 덧붙여 "방금 퇴근" 과 "오래 전
+//   퇴근" 을 화면에서 가른다 — 이 구분이 없어 사용자가 "나래 지금 도는가" 를 세션에
+//   되물어야 했다. 24h 초과분은 칩을 그대로 두되 **툴팁에 절대시각**을 남긴다:
+//   정보를 버리지 않으면서 홈이 명부로 번지는 것도 막는 절충이다.
+const BOT_RECENT_SEC = 86400;
+function botChip(m) {
+  const label = `${m.state_emoji} ${m.title}`;
+  const ts = Number(m.last_seen) || 0;
+  // 기록이 아예 없는 봇(한 번도 일한 적 없음)은 없는 시각을 지어내지 않는다.
+  if (!ts) return `<span class="bot-chip">${escapeHtml(label)}</span>`;
+  const tip = t('bots.chipLastSeen', { t: new Date(ts * 1000).toLocaleString() });
+  const fresh = (Date.now() / 1000 - ts) < BOT_RECENT_SEC;
+  if (!fresh) return `<span class="bot-chip" title="${escapeHtml(tip)}">${escapeHtml(label)}</span>`;
+  return `<span class="bot-chip bot-chip-recent" title="${escapeHtml(tip)}">${escapeHtml(label)}`
+    + ` <span class="bot-chip-age">${escapeHtml(t('bots.chipCheckout', { t: relTime(ts) }))}</span></span>`;
+}
+
 function renderBotGroups(bots, roster) {
   const active = new Map(bots.map(b => [b.bot_id, b]));
   const order = [];
@@ -12066,7 +12144,7 @@ function renderBotGroups(bots, roster) {
     const rest = g.members.filter(m => !active.has(m.bot_id));
     const chips = rest.length
       ? `<div class="bot-group-rest" title="${escapeHtml(t('bots.restTitle'))}">`
-        + rest.map(m => `<span class="bot-chip">${escapeHtml(m.state_emoji)} ${escapeHtml(m.title)}</span>`).join('')
+        + rest.map(botChip).join('')
         + `</div>`
       : '';
     // ⚠️ 조직도 링크는 **그룹 헤더**에만 둔다. 카드 본체 클릭은 Issue401 아코디언이
