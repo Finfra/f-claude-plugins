@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "plugin": "fpm-core",
-  "version": "0.7.4",
-  "git_sha": "9f2b1662423b9db90e2c3a02463325ed8001a3bd",
-  "generated_at": "2026-08-29T16:17:02Z",
+  "version": "0.8.0",
+  "git_sha": "f10366260ddba1ef9c61c95c1d76c526541b9a22",
+  "generated_at": "2026-08-29T17:00:52Z",
   "algorithm": "sha256",
   "file_count": 108,
   "files": {
     "CLAUDE.md": "beb8342aeae1001c55347877cdce2858a320f1f8c8a33fd6d52bb9385f92ea1e",
-    ".claude-plugin/plugin.json": "93262df2f6559de54ef017f34ed10998a8219bb9998ac4f04699674018546659",
+    ".claude-plugin/plugin.json": "6d0cb10bb3f8be6c3a2f7e46d6b310f7a7d7013a487c5af398c150f9a8cdf6d1",
     "agents/fpm-board-queue-runner.sh": "5bfbcb4b2f85fabddc7b95f787621da08c253431473ce8404eab15fd4a4f037a",
     "agents/fpm-board-queue.sample.yaml": "3b7b358cb1587318661b3de592d875a94a1643971e9b99e6459e0fa3629a785e",
     "agents/fpm-board-runner.sh": "0f4cb5b3225e48f52c9d8e4ba4f08cc824edeb5a84836ebc38e42c8006b09a8c",
