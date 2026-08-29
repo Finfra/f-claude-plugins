@@ -61,3 +61,12 @@ Issue_map.htm
 
 # graphify 산출물 — 재생성 가능, 커밋 루프 방지 (Issue296)
 graphify-out/
+
+# ── icons/ 디렉토리 구제 (prj3#Issue453) ─────────────────────────────────────
+# ~/.gitignore_global 의 `Icon?` 는 macOS 커스텀 폴더 아이콘(`Icon\r`) 패턴인데,
+# `?` 가 한 글자 와일드카드라 macOS 의 대소문자 무시 매칭에서 **디렉토리 `icons` 를
+# 통째로 잡는다**. 그래서 fpm-core/data/fbot/icons/catalog.yml 이 마켓에 한 번도
+# 커밋되지 않았고, 소비자는 아이콘 카탈로그를 못 받아 첫 채용이 fail-loud 로 거부됐다
+# (fg1 실측 2026-08-27 — 부트스트랩 폴백이 대신 메웠으나 정본 배치가 우선이다).
+!**/icons/
+!**/icons/**
