@@ -58,7 +58,19 @@ if live and not force:
 mon = '$HOME/.claude/hooks/fbot-board-monitor.sh'
 doc = {
     "title": topic,
-    "status": "running",
+    # ⚠️ **`running` 이 아니다** (Issue455, 2026-08-29). init 은 data 파일만 준비하고
+    #   runner 는 사용자가 `..board bots` 를 입력할 때 뜬다 — 그 사이를 `running` 으로
+    #   적으면 **거짓 running 카드**가 된다(실사고: 08-25 12:00 mtime 에 status=running·
+    #   pid=null 인 파일이 hub 에서 가동 중으로 렌더).
+    #   내부 모순도 있었다 — 아래 `pid: None` 은 위 덮어쓰기 보호 조건
+    #   (`status=="running" and isinstance(pid,int)`)을 **구조적으로 만족할 수 없다**.
+    #   자기가 만든 파일이 자기 보호를 못 받는 상태였다.
+    # ⚠️ 값은 계약 3종(`running|stopped|done` — board.md L110) 안에서 고른다.
+    #   `pending` 은 계약 밖이라 소비처 아이콘·판정이 정의돼 있지 않다.
+    # ⚠️ 수용측 완화(prj1#Issue403 mtime 강등)로 대체하지 않은 이유 — 그쪽은 **늙은 것**을
+    #   잡는 장치이고 여기는 **처음부터 틀린 것**이라 성격이 다르다. 갓 만든 파일은
+    #   mtime 이 새것이라 그 강등에 걸리지 않는다.
+    "status": "stopped",
     # 기존 값 보존 → 재실행 멱등(sha 동일)
     "started_at": old.get("started_at") or time.strftime("%Y-%m-%dT%H:%M:%S"),
     "pid": None,
