@@ -2,6 +2,17 @@
 title: CLAUDE.md
 description: Claude Code가 이 저장소에서 작업할 때 참고하는 가이드
 date: 2026-04-04
+
+# ── L1 아이덴티티 (Issue472) ──────────────────────────────────────────
+# 스키마 정본: prj6 ~/_git/___architect/_doc_arch/project-identity-scheme.md
+# ⚠️ 빈 필드는 추측으로 채우지 말 것 — 틀린 값은 빈 값보다 나쁘다
+prj: 20
+identity: macOS 네이티브 앱을 Claude Code 에서 제어하는 플러그인 마켓플레이스
+not: 앱을 만드는 곳이 아니다 — 앱은 prj11~16 이고 여기는 그 REST API 를 감싼 제어 표면이다
+goal_parent: 보조 도구
+lifetime: perpetual
+outcome: fApp 각 앱이 플러그인으로 설치·제어 가능한가
+status: active
 ---
 
 글로벌 규칙(언어, 스타일, 네이밍 등)은 `~/.claude/CLAUDE.md` 참조.
