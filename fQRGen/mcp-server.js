@@ -51,13 +51,26 @@ async function main() {
   rl.on('line', async (line) => {
     try {
       const msg = JSON.parse(line);
-      if (msg.method === 'initialize') {
+      if (msg.method === 'server/discover') {
+        // MCP 2026-07-28 무상태 코어 — 핸드셰이크 없이 지원 버전을 광고한다.
+        // 구 클라이언트는 이 메서드를 보내지 않고 곧바로 initialize 로 오므로 아래 분기가 그대로 처리한다.
+        process.stdout.write(JSON.stringify({
+          jsonrpc: '2.0',
+          id: msg.id,
+          result: {
+            ttlMs: 60000,
+            cacheScope: 'private',
+            supportedVersions: ['2026-07-28'],
+            capabilities: { tools: { listChanged: false } }
+          }
+        }) + '\n');
+      } else if (msg.method === 'initialize') {
         process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { protocolVersion: '2024-11-05', capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'fQRGen', version: '1.0.0' } } }) + '\n');
       } else if (msg.method === 'tools/list') {
-        process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { tools } }) + '\n');
+        process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { ttlMs: 60000, cacheScope: 'private', tools } }) + '\n');
       } else if (msg.method === 'tools/call') {
         const result = await handleToolCall(msg.params.name, msg.params.arguments);
-        process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { content: [{ type: 'text', text: JSON.stringify(result) }], isError: false } }) + '\n');
+        process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { content: [{ type: 'text', text: JSON.stringify(result) }], isError: false, resultType: 'complete' } }) + '\n');
       }
     } catch (err) {
       process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: 0, error: { code: -32603, message: err.message } }) + '\n');
