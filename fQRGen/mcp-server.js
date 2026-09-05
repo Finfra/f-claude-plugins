@@ -24,14 +24,17 @@ function makeRequest(path, method = 'GET', body = null) {
 }
 
 async function handleToolCall(toolName, toolInput) {
+  const inp = toolInput || {};
   try {
     switch (toolName) {
       case 'generate_qr':
-        return await makeRequest('/api/generate', 'POST', { data: toolInput.data, format: toolInput.format || 'png', size: toolInput.size || 200 });
+        return await makeRequest('/api/generate', 'POST', { data: inp.data, format: inp.format || 'png', size: inp.size || 200 });
       case 'generate_from_url':
-        return await makeRequest('/api/generate/url', 'POST', { url: toolInput.url, format: toolInput.format || 'png', size: toolInput.size || 200 });
+        // 앱에는 /api/generate 하나뿐이다 — URL 도 같은 엔드포인트로 보낸다
+        return await makeRequest('/api/generate', 'POST', { data: inp.url, format: inp.format || 'png', size: inp.size || 200 });
       case 'get_status':
-        return await makeRequest('/api/status');
+        // 상태는 루트가 제공한다 (/api/status 는 존재하지 않음)
+        return await makeRequest('/');
       default:
         return { error: `Unknown tool: ${toolName}` };
     }

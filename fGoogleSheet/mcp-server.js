@@ -24,20 +24,22 @@ function makeRequest(path, method = 'GET', body = null) {
 }
 
 async function handleToolCall(toolName, toolInput) {
+  const inp = toolInput || {};
   try {
     switch (toolName) {
       case 'add_row':
-        return await makeRequest('/api/sheets/add-row', 'POST', { data: toolInput.data });
+        return await makeRequest('/api/add-line', 'POST', { data: inp.data });
       case 'set_field':
-        return await makeRequest('/api/sheets/set-field', 'POST', { row: toolInput.row, column: toolInput.column, value: toolInput.value });
+        return await makeRequest('/api/set-fields', 'POST', { row: inp.row, column: inp.column, value: inp.value });
       case 'clear_range':
-        return await makeRequest('/api/sheets/clear-range', 'POST', { range: toolInput.range });
+        // range 는 쿼리스트링으로 전달한다 (POST /api/clear-range?range=<A1Range>)
+        return await makeRequest(`/api/clear-range?range=${encodeURIComponent(inp.range || '')}`, 'POST');
       case 'find_unanswered':
-        return await makeRequest('/api/sheets/find-unanswered', 'POST', { column: toolInput.column });
+        return await makeRequest(`/api/unanswered${inp.startRow ? `?startRow=${inp.startRow}` : ''}`);
       case 'check_status':
-        return await makeRequest('/api/sheets/status');
+        return await makeRequest('/api/status');
       case 'find_next_row':
-        return await makeRequest('/api/sheets/find-next-row', 'POST', { column: toolInput.column });
+        return await makeRequest(`/api/next-row${inp.startRow ? `?startRow=${inp.startRow}` : ''}`);
       default:
         return { error: `Unknown tool: ${toolName}` };
     }

@@ -24,18 +24,22 @@ function makeRequest(path, method = 'GET', body = null) {
 }
 
 async function handleToolCall(toolName, toolInput) {
+  const inp = toolInput || {};
   try {
     switch (toolName) {
       case 'set_window_size':
-        return await makeRequest('/api/window/size', 'POST', { width: toolInput.width, height: toolInput.height });
+        return await makeRequest('/api/window/frame', 'POST', { width: inp.width, height: inp.height });
       case 'set_background':
-        return await makeRequest('/api/background', 'POST', { color: toolInput.color, gradient: toolInput.gradient });
+        // 앱은 색과 그라디언트를 별도 엔드포인트로 받는다
+        if (inp.gradient) return await makeRequest('/api/background/gradient', 'POST', { gradient: inp.gradient });
+        return await makeRequest('/api/background/color', 'POST', { color: inp.color });
       case 'load_preset':
-        return await makeRequest('/api/preset/load', 'POST', { name: toolInput.preset_name });
+        return await makeRequest('/api/presets/apply', 'POST', { name: inp.preset_name });
       case 'get_presets':
         return await makeRequest('/api/presets');
       case 'clear_canvas':
-        return await makeRequest('/api/canvas/clear', 'POST', {});
+        // fBoard 앱에 대응 엔드포인트가 없다 — 404 를 흘리지 않고 명시적으로 실패시킨다
+        return { error: 'clear_canvas: fBoard 앱에 대응 API 가 없음 (구 /api/canvas/clear 는 미구현)' };
       default:
         return { error: `Unknown tool: ${toolName}` };
     }

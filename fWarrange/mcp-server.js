@@ -24,20 +24,27 @@ function makeRequest(path, method = 'GET', body = null) {
 }
 
 async function handleToolCall(toolName, toolInput) {
+  const inp = toolInput || {};
   try {
     switch (toolName) {
       case 'save_layout':
-        return await makeRequest('/api/layout/save', 'POST', { name: toolInput.name });
+        // 저장은 capture 다 — 이름을 주지 않으면 앱이 기본 이름을 붙인다
+        return await makeRequest('/api/v2/capture', 'POST', inp.name ? { name: inp.name } : {});
       case 'restore_layout':
-        return await makeRequest('/api/layout/restore', 'POST', { name: toolInput.name });
+        // 복원은 레이아웃 이름이 경로에 들어간다
+        return await makeRequest(`/api/v2/layouts/${encodeURIComponent(inp.name || '')}/restore`, 'POST', {});
       case 'list_layouts':
-        return await makeRequest('/api/layouts');
+        return await makeRequest('/api/v2/layouts');
       case 'set_context_mode':
-        return await makeRequest('/api/context/set', 'POST', { mode: toolInput.mode });
+        // 컨텍스트 전환 = 모드 활성화
+        return await makeRequest(`/api/v2/modes/${encodeURIComponent(inp.mode || '')}/activate`, 'POST', {});
       case 'get_helper_status':
-        return await makeRequest('/api/helper/status');
+        return await makeRequest('/api/v2/cli/status');
       case 'configure_helper':
-        return await makeRequest('/api/helper/config', 'POST', toolInput);
+        // 인자가 있으면 general 설정을 PATCH, 없으면 현재 설정을 조회한다
+        return Object.keys(inp).length
+          ? await makeRequest('/api/v2/settings/general', 'PATCH', inp)
+          : await makeRequest('/api/v2/settings');
       default:
         return { error: `Unknown tool: ${toolName}` };
     }

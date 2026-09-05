@@ -24,18 +24,19 @@ function makeRequest(path, method = 'GET', body = null) {
 }
 
 async function handleToolCall(toolName, toolInput) {
+  const inp = toolInput || {};
   try {
     switch (toolName) {
       case 'search_snippets':
-        return await makeRequest(`/api/search?q=${encodeURIComponent(toolInput.query)}`);
+        return await makeRequest(`/api/v2/snippets/search?q=${encodeURIComponent(inp.query || '')}${inp.limit ? `&limit=${inp.limit}` : ''}`);
       case 'expand_snippet':
-        return await makeRequest('/api/expand', 'POST', { key: toolInput.key, context: toolInput.context });
+        return await makeRequest('/api/v2/snippets/expand', 'POST', { key: inp.key, context: inp.context });
       case 'create_snippet':
-        return await makeRequest('/api/create', 'POST', { key: toolInput.key, value: toolInput.value, tags: toolInput.tags });
+        return await makeRequest('/api/v2/snippets', 'POST', { key: inp.key, value: inp.value, tags: inp.tags });
       case 'list_snippets':
-        return await makeRequest('/api/list');
+        return await makeRequest(`/api/v2/snippets${inp.limit ? `?limit=${inp.limit}` : ''}`);
       case 'get_status':
-        return await makeRequest('/api/status');
+        return await makeRequest('/api/v2/status');
       default:
         return { error: `Unknown tool: ${toolName}` };
     }
