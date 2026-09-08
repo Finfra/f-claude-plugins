@@ -66,6 +66,16 @@
       "version": "1.1.0"
     },
     {
+      "name": "fcapture",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Finfra/f-claude-plugins.git",
+        "path": "fCapture"
+      },
+      "description": "Capture macOS screens, windows, and regions via the fCapture CLI (no REST port required)",
+      "version": "1.0.0"
+    },
+    {
       "name": "fpm-core",
       "source": {
         "source": "git-subdir",

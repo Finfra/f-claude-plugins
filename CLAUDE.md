@@ -19,7 +19,7 @@ status: active
 
 # 프로젝트 개요
 
-macOS 네이티브 앱을 Claude Code에서 제어할 수 있는 플러그인 모음 저장소. 각 플러그인은 macOS 앱의 REST API를 통해 동작하며, Claude Code 마켓플레이스에서 설치 가능.
+macOS 네이티브 앱을 Claude Code에서 제어할 수 있는 플러그인 모음 저장소. 대부분의 플러그인은 macOS 앱의 REST API를 통해 동작하고(fCapture 만 CLI 직접 실행), Claude Code 마켓플레이스에서 설치 가능.
 
 # 구조
 
@@ -33,6 +33,7 @@ f-claude-plugins/
 ├── fQRGen/                   # QR 코드 생성 (Port: 3014)
 ├── fSnippet/                 # 텍스트 스니펫 관리 (Port: 3015)
 ├── fWarrange/                # 윈도우 레이아웃 저장/복원 (Port: 3016)
+├── fCapture/                 # 화면·윈도우·영역 캡처 (CLI 직접 실행 — 포트 없음)
 ├── Issue.md                  # 이슈 트래커
 └── nodeForHuman.md           # 휴먼 노드 문서
 ```
@@ -53,6 +54,9 @@ f-claude-plugins/
 | fQRGen       | fQRGen.app       | 3014 | QR 코드 생성                      |
 | fSnippet     | fSnippet.app     | 3015 | 텍스트 스니펫 관리                |
 | fWarrange    | fWarrange.app    | 3016 | 윈도우 레이아웃 저장/복원         |
+| fCapture     | fCapture CLI     | —    | 화면·윈도우·영역 캡처             |
+
+> **fCapture 만 예외**: 나머지 6종은 macOS 앱의 REST API(포트 3011~3016)를 `http.request` 로 호출한다. fCapture 는 앱이 아니라 CLI 이므로 서버 포트가 없고 `child_process.execFile` 로 바이너리를 직접 실행한다 — 포트 할당 불필요.
 
 # Claude Code 커맨드 (`.claude/commands/`)
 

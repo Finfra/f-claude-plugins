@@ -16,6 +16,7 @@ date: 2026-03-26
 | [fQRGen](fQRGen/)             | URL/텍스트에서 QR 코드 생성                 | 3014 | fQRGen.app       |
 | [fWarrange](fWarrange/)       | macOS 윈도우 레이아웃 저장/복원             | 3016 | fWarrange.app    |
 | [fGoogleSheet](fGoogleSheet/) | Google Sheets 데이터 관리                   | 3013 | fGoogleSheet.app |
+| [fCapture](fCapture/)         | macOS 화면·윈도우·영역 캡처                 | —    | fCapture CLI     |
 
 # Installation
 
@@ -56,7 +57,8 @@ f-claude-plugins/
 ├── fSnippet/
 ├── fQRGen/
 ├── fWarrange/
-└── fGoogleSheet/
+├── fGoogleSheet/
+└── fCapture/
 ```
 
 각 플러그인 폴더는 동일한 구조를 따릅니다:
