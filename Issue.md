@@ -1,6 +1,6 @@
 # Issue Management
 
-* Issue HWM: 9
+* Issue HWM: 12
 * Checkpoints:
     - 8cb111b (2026-07-26) MCP 브릿지 구현 + Desktop config 정정
     - 02d1026 (2026-03-19)
@@ -36,6 +36,25 @@
 ---
 
 ## ✅ 완료
+
+### Issue12: 라이선스 프로파일 C — README 의 MIT 주장에 맞는 LICENSE 파일 추가 (등록: 2026-09-27, 완료: 2026-09-27)
+* Hash: ce897a4
+* 목적: README 는 MIT 라 하지만 LICENSE 파일이 없어 법적으로는 미허가 상태다. 커넥터라 제한 없는 MIT 가 prj6 정본 배정이다
+* 상세:
+    - 루트 `LICENSE` = MIT 원문(Copyright (c) 2026 Finfra Co., Ltd.) · 각 플러그인 `plugin.json` 에 `license` 필드가 있으면 `MIT` 로 통일(없으면 추가하지 않는다)
+    - README 라이선스 절에 LICENSE 링크
+    - 정본 `/Users/nowage/_git/___architect/_doc_arch/license-profiles.md` §4 row 20 · 템플릿 `/Users/nowage/_git/___architect/data/template/license/README.md`(자리표 값 표 포함 — `{{N}}`=250 · `{{LICENSOR}}`=`Finfra Co., Ltd. (https://finfra.kr)` · `{{CONTACT}}`=finfra@gmail.com)
+* 구현 명세:
+    - 검증: `LICENSE` 존재 · README 라이선스 절 링크 · `grep -rn "All rights reserved" README*` 0건
+    - 금지: `git push`(공개 라이선스 변경은 사용자가 push) · npm publish · 기존 릴리스 태그 변경
+    - `Issue.md` 는 `python3 ~/.claude/sh/issue-tx.py --file Issue.md stage --issues <N>` / `check` 경유 스테이징 · 커밋 후 ✅ 이동 + hash 기록
+* 결과:
+    - 루트 `LICENSE` 신설 — MIT 원문, `Copyright (c) 2026 Finfra Co., Ltd. (https://finfra.kr)`. 하단 Notes 에 `fpm-core/` 제외 명시
+    - `README.md` 라이선스 절 → `[LICENSE](LICENSE)` 링크 + `fpm-core/` 예외 1줄
+    - `plugin.json` 7종(fBanner·fBoard·fGoogleSheet·fQRGen·fSnippet·fWarrange·fCapture)은 이미 `MIT` — 변경 없음
+    - `fpm-core/.claude-plugin/plugin.json` 의 `PolyForm-Noncommercial-1.0.0` 은 **의도적으로 유지** — prj8 fpm 미러(`.fpm-integrity.json` 해시 대상)라 라이선스 소관이 prj8 이다(정본 §4 row 8: fpm 은 A → Apache-2.0 전환 예정). 여기서 MIT 로 바꾸면 소관 침범 + 무결성 해시 불일치
+    - 검증: [v] `LICENSE` 존재 · [v] README 링크 · [v] `All rights reserved` README* 0건 · push 미수행(사용자 몫)
+    - 도구 한계: `issue-tx.py move` 가 `# ` 레벨 섹션만 인식해 이 repo(`## ✅ 완료`)에서 섹션을 못 찾음 → 블록 이동은 수동 편집
 
 ### Issue9. Claude Desktop MCP 서버 6종 연결 끊김 — node 경로 resolve 문제 (등록: 2026-08-03, 해결: 2026-08-03, commit: N/A — gitignore 대상이라 커밋 불가) ✅
 * 목적: Claude Desktop 앱에서 fBanner·fBoard·fGoogleSheet·fQRGen·fSnippet·fWarrange 6개 MCP 서버가 모두 "Server disconnected" 상태였던 원인 규명 및 재발 위험 기록 (prj5 세션에서 발견·조사)
