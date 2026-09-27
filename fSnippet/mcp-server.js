@@ -2,7 +2,8 @@
 const readline = require('readline');
 const http = require('http');
 
-const PORT = 3015;
+// FSNIPPET_PORT 는 테스트·비표준 포트용 override — 기본은 앱 고정 포트
+const PORT = Number(process.env.FSNIPPET_PORT) || 3015;
 const BASE_URL = `http://localhost:${PORT}`;
 
 function makeRequest(path, method = 'GET', body = null) {
@@ -41,12 +42,29 @@ async function handleToolCall(toolName, toolInput) {
         return { error: `Unknown tool: ${toolName}` };
     }
   } catch (err) {
-    return { error: err.message };
+    // 연결 거부는 AggregateError 라 message 가 빈 문자열이다 — 빈 error 는 성공으로 오인되므로 code 로 채운다
+    return { error: `앱(${BASE_URL}) 호출 실패: ${err.message || err.code || String(err)}` };
   }
+}
+
+// 도구 inputSchema.required 기준으로 누락 필드를 찾는다 — 앱에 undefined 를 흘려보내지 않는다.
+function missingRequired(tools, toolName, inp) {
+  const tool = tools.find(t => t.name === toolName);
+  const required = (tool && tool.inputSchema && tool.inputSchema.required) || [];
+  return required.filter(k => inp[k] === undefined || inp[k] === null || inp[k] === '');
+}
+
+// 도구 실패 판정 — 서버 내부 오류(error) 또는 앱의 HTTP 4xx/5xx
+function isErrorResult(result) {
+  return Boolean(result && (result.error || (typeof result.status === 'number' && result.status >= 400)));
 }
 
 async function main() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  // stdin 이 닫혀도 진행 중인 도구 응답을 버리지 않는다 — 남은 호출이 끝난 뒤 종료한다.
+  let inFlight = 0;
+  let closed = false;
+  const maybeExit = () => { if (closed && inFlight === 0) process.exit(0); };
   const tools = [
     { name: 'search_snippets', description: 'Search snippets by keyword', inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
     { name: 'expand_snippet', description: 'Expand snippet with context', inputSchema: { type: 'object', properties: { key: { type: 'string' }, context: { type: 'string' } }, required: ['key'] } },
@@ -76,14 +94,24 @@ async function main() {
       } else if (msg.method === 'tools/list') {
         process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { ttlMs: 60000, cacheScope: 'private', tools } }) + '\n');
       } else if (msg.method === 'tools/call') {
-        const result = await handleToolCall(msg.params.name, msg.params.arguments);
-        process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { content: [{ type: 'text', text: JSON.stringify(result) }], isError: false, resultType: 'complete' } }) + '\n');
+        inFlight += 1;
+        try {
+          const inp = msg.params.arguments || {};
+          const missing = missingRequired(tools, msg.params.name, inp);
+          const result = missing.length
+            ? { error: `필수 입력 누락: ${missing.join(', ')}` }
+            : await handleToolCall(msg.params.name, inp);
+          process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { content: [{ type: 'text', text: JSON.stringify(result) }], isError: isErrorResult(result), resultType: 'complete' } }) + '\n');
+        } finally {
+          inFlight -= 1;
+          maybeExit();
+        }
       }
     } catch (err) {
       process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: 0, error: { code: -32603, message: err.message } }) + '\n');
     }
   });
-  rl.on('close', () => process.exit(0));
+  rl.on('close', () => { closed = true; maybeExit(); });
 }
 
 main().catch(err => { console.error(err); process.exit(1); });

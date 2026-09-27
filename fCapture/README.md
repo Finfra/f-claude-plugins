@@ -87,6 +87,7 @@ display and returns one path per display in `paths`.
   text looks permission-related, the message appends the System Settings path the user needs.
 * **Binary lookup order:** `FCAPTURE_BIN` → `/opt/homebrew/bin/fcapture` →
   `/usr/local/bin/fcapture` → `~/.bin/fCapture`. Nothing is hardcoded.
+  If `FCAPTURE_BIN` is set but not executable, the server returns an error instead of falling back to another install.
 
 ---
 

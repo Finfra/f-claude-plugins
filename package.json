@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "test": "node --test --test-timeout=30000 'tdd/cases/*.test.js'"
+  },
   "dependencies": {
     "fqrgen-mcp": "^1.0.0"
   }

@@ -53,7 +53,7 @@
         "path": "fSnippet"
       },
       "description": "Search, expand, and manage text snippets via fSnippet REST API",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
     {
       "name": "fwarrange",

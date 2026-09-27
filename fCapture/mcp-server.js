@@ -8,9 +8,17 @@ const os = require('os');
 const path = require('path');
 
 // 바이너리 탐색 순서: FCAPTURE_BIN → brew 설치본 → ~/.bin 심링크. 하드코딩하지 않는다.
+// FCAPTURE_BIN 을 명시했는데 실행할 수 없으면 다른 설치본으로 조용히 넘어가지 않는다 — 의도와 다른 바이너리가 돈다.
 function resolveBin() {
+  if (process.env.FCAPTURE_BIN) {
+    try {
+      fs.accessSync(process.env.FCAPTURE_BIN, fs.constants.X_OK);
+      return { bin: process.env.FCAPTURE_BIN };
+    } catch {
+      return { error: `FCAPTURE_BIN 에 지정한 경로를 실행할 수 없습니다: ${process.env.FCAPTURE_BIN}` };
+    }
+  }
   const candidates = [
-    process.env.FCAPTURE_BIN,
     '/opt/homebrew/bin/fcapture',
     '/usr/local/bin/fcapture',
     path.join(os.homedir(), '.bin', 'fCapture')
@@ -18,10 +26,15 @@ function resolveBin() {
   for (const c of candidates) {
     try {
       fs.accessSync(c, fs.constants.X_OK);
-      return c;
+      return { bin: c };
     } catch { /* 다음 후보 */ }
   }
-  return null;
+  return {
+    error:
+      'fCapture 바이너리를 찾지 못했습니다. `brew install finfra/f/fcapture` 로 설치하거나 ' +
+      'FCAPTURE_BIN 환경변수에 실행 파일 절대경로를 지정하십시오. ' +
+      '탐색한 경로: FCAPTURE_BIN, /opt/homebrew/bin/fcapture, /usr/local/bin/fcapture, ~/.bin/fCapture'
+  };
 }
 
 const PERMISSION_HINT =
@@ -45,16 +58,12 @@ function runCli(args, timeoutMs) {
 // CLI 1회 실행. 조용한 실패 금지 — exit code·stderr 를 그대로 사람이 읽는 메시지로 감싼다.
 function runCliOnce(args, timeoutMs) {
   return new Promise((resolve) => {
-    const bin = resolveBin();
-    if (!bin) {
-      resolve({
-        error:
-          'fCapture 바이너리를 찾지 못했습니다. `brew install finfra/f/fcapture` 로 설치하거나 ' +
-          'FCAPTURE_BIN 환경변수에 실행 파일 절대경로를 지정하십시오. ' +
-          '탐색한 경로: FCAPTURE_BIN, /opt/homebrew/bin/fcapture, /usr/local/bin/fcapture, ~/.bin/fCapture'
-      });
+    const resolved = resolveBin();
+    if (resolved.error) {
+      resolve({ error: resolved.error });
       return;
     }
+    const bin = resolved.bin;
     execFile(bin, args, { timeout: timeoutMs || 60000, maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
       const out = (stdout || '').trim();
       const errOut = (stderr || '').trim();
@@ -174,6 +183,13 @@ async function handleToolCall(toolName, toolInput) {
   }
 }
 
+// 도구 inputSchema.required 기준으로 누락 필드를 한 번에 알린다.
+function missingRequired(tools, toolName, inp) {
+  const tool = tools.find(t => t.name === toolName);
+  const required = (tool && tool.inputSchema && tool.inputSchema.required) || [];
+  return required.filter(k => inp[k] === undefined || inp[k] === null || inp[k] === '');
+}
+
 async function main() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   // stdin 이 닫혀도 진행 중인 캡처 응답을 버리지 않는다 — 남은 호출이 끝난 뒤 종료한다.
@@ -261,7 +277,11 @@ async function main() {
       } else if (msg.method === 'tools/call') {
         inFlight += 1;
         try {
-          const result = await handleToolCall(msg.params.name, msg.params.arguments);
+          const inp = msg.params.arguments || {};
+          const missing = missingRequired(tools, msg.params.name, inp);
+          const result = missing.length
+            ? { error: `필수 입력 누락: ${missing.join(', ')}` }
+            : await handleToolCall(msg.params.name, inp);
           process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { content: [{ type: 'text', text: JSON.stringify(result) }], isError: Boolean(result && result.error), resultType: 'complete' } }) + '\n');
         } finally {
           inFlight -= 1;

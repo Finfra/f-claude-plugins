@@ -8,8 +8,8 @@ date: 2026.09.26
 
 각 플러그인 MCP 서버가 앱의 실제 REST 경로와 CLI 규약대로 호출하고, 마켓플레이스 등록이 정합한지 지킨다
 
-* 기존 러너: `python3 fpm-core/services/hub/test_*.py (fpm-core 번들 회귀 테스트 24종, ___pm 소유) / 앱 플러그인용 러너 없음(package.json에 test script 없음)`
-* 목표 7개 중 기존 테스트로 덮인 것 1개 · 신규 6개
+* 러너: 앱 플러그인 `npm test` (= `node --test tdd/cases/*.test.js`, 격리 — 임시 HOME·목 서버·가짜 fCapture 바이너리, 실제 앱·캡처 미접촉) / fpm-core 번들 `python3 fpm-core/services/hub/test_*.py` (24종, ___pm 소유)
+* 목표 7개 전부 ✅ (2026.09.27, prj5#Issue100) — 신규 6개는 `tdd/cases/` 48 케이스
 
 # 재생목록
 
@@ -17,13 +17,13 @@ date: 2026.09.26
 
 | # | id | 목표 | 근거 | 실행 | 상태 |
 | :- | :- | :- | :- | :- | :- |
-| 1 | `marketplace-manifest-consistency` | .claude-plugin/marketplace.json의 각 플러그인 path가 실제 폴더와 plugin.json을 가리키고, version이 plugin.json과 같다 | .claude-plugin/marketplace.json, */plugin.json (예: fBoard 1.1.0, fGoogleSheet 1.2.0) | — | ⬜ 신규 |
-| 2 | `mcp-rest-paths-real` | 각 MCP 서버가 호출하는 REST 경로가 앱 실제 API와 일치한다(fSnippet·fWarrange는 /api/v2/*, fQRGen은 /api/generate) | commit a5af46e(5개 서버가 존재하지 않는 엔드포인트를 호출해 실동작 0이었음) | — | ⬜ 신규 |
-| 3 | `mcp-missing-input-guard` | toolInput 없이 도구를 호출해도 TypeError로 죽지 않고 isError 응답을 돌려준다 | commit a5af46e '공통: toolInput 미전달 시 TypeError 방지 가드' | — | ⬜ 신규 |
-| 4 | `fcapture-serialized-calls` | fCapture MCP는 동시에 들어온 캡처 호출을 직렬화해서, 병렬 요청도 전부 성공한다(권한 오류로 위장된 실패가 나지 않는다) | Issue10 실측 발견: 3-way 병렬은 전건 실패, 순차는 성공. promise 체인 뮤텍스 도입 | — | ⬜ 신규 |
-| 5 | `stdin-close-inflight` | stdin이 닫혀도 진행 중인 비동기 도구 호출의 응답은 버려지지 않고 전달된다 | Issue10 실측 발견: rl.on('close', process.exit) 패턴이 in-flight 응답을 버림(fQRGen/mcp-server.js 유래) | — | ⬜ 신규 |
-| 6 | `fcapture-error-paths` | 잘못된 mode, width 0, 프리셋 파일 부재, 바이너리 미발견, region_user 프리셋이 모두 isError=true와 사람이 읽을 수 있는 메시지로 반환된다 | Issue10 명세 준수·검증 결과(에러 경로 4종, region_user 거부) | — | ⬜ 신규 |
-| 7 | `fpm-core-hub-regression` | fpm-core hub 서비스 회귀 테스트(i18n 패리티, 토큰 마스킹, allowlist 등)가 전부 exit 0으로 통과한다 | fpm-core/services/hub/test_*.py 24종 (예: test_i18n_parity.py 헤더 '실행: python3 services/hub/test_i18n_parity.py') | `for t in fpm-core/services/hub/test_*.py; do python3 $t; done` | ✅ 기존 |
+| 1 | `marketplace-manifest-consistency` | .claude-plugin/marketplace.json의 각 플러그인 path가 실제 폴더와 plugin.json을 가리키고, version이 plugin.json과 같다 | .claude-plugin/marketplace.json, */plugin.json (예: fBoard 1.1.0, fGoogleSheet 1.2.0) | `node --test tdd/cases/marketplace-manifest-consistency.test.js` | ✅ |
+| 2 | `mcp-rest-paths-real` | 각 MCP 서버가 호출하는 REST 경로가 앱 실제 API와 일치한다(fSnippet·fWarrange는 /api/v2/*, fQRGen은 /api/generate) | commit a5af46e(5개 서버가 존재하지 않는 엔드포인트를 호출해 실동작 0이었음) | `node --test tdd/cases/mcp-rest-paths-real.test.js` (목 REST 서버 · `F*_PORT` override) | ✅ |
+| 3 | `mcp-missing-input-guard` | toolInput 없이 도구를 호출해도 TypeError로 죽지 않고 isError 응답을 돌려준다 | commit a5af46e '공통: toolInput 미전달 시 TypeError 방지 가드' | `node --test tdd/cases/mcp-missing-input-guard.test.js` | ✅ |
+| 4 | `fcapture-serialized-calls` | fCapture MCP는 동시에 들어온 캡처 호출을 직렬화해서, 병렬 요청도 전부 성공한다(권한 오류로 위장된 실패가 나지 않는다) | Issue10 실측 발견: 3-way 병렬은 전건 실패, 순차는 성공. promise 체인 뮤텍스 도입 | `node --test tdd/cases/fcapture-serialized-calls.test.js` (가짜 바이너리 `FCAPTURE_BIN`) | ✅ |
+| 5 | `stdin-close-inflight` | stdin이 닫혀도 진행 중인 비동기 도구 호출의 응답은 버려지지 않고 전달된다 | Issue10 실측 발견: rl.on('close', process.exit) 패턴이 in-flight 응답을 버림(fQRGen/mcp-server.js 유래) | `node --test tdd/cases/stdin-close-inflight.test.js` | ✅ |
+| 6 | `fcapture-error-paths` | 잘못된 mode, width 0, 프리셋 파일 부재, 바이너리 미발견, region_user 프리셋이 모두 isError=true와 사람이 읽을 수 있는 메시지로 반환된다 | Issue10 명세 준수·검증 결과(에러 경로 4종, region_user 거부) | `node --test tdd/cases/fcapture-error-paths.test.js` | ✅ |
+| 7 | `fpm-core-hub-regression` | fpm-core hub 서비스 회귀 테스트(i18n 패리티, 토큰 마스킹, allowlist 등)가 전부 exit 0으로 통과한다 | fpm-core/services/hub/test_*.py 24종 (예: test_i18n_parity.py 헤더 '실행: python3 services/hub/test_i18n_parity.py') | `for t in fpm-core/services/hub/test_*.py; do python3 $t; done` — 미러 23/24. `test_issue_map.py` 는 번들 생성기를 `plugins/fpm-core/…`(___pm 레이아웃)로만 찾아 미러에서 [배포본] 1건 FAIL → **원본 ___pm 에서 실행 72/72 pass 로 대체**, 탐색 수정은 prj1 이관(미러 파일은 `.fpm-integrity.json` 해시 대상이라 여기서 고치지 않음) | ✅ 대체 |
 
 # 규약
 

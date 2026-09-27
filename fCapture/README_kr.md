@@ -86,6 +86,7 @@ fCapture/
   보이면 사용자가 눌러야 할 시스템 설정 경로를 덧붙입니다.
 * **바이너리 탐색 순서:** `FCAPTURE_BIN` → `/opt/homebrew/bin/fcapture` →
   `/usr/local/bin/fcapture` → `~/.bin/fCapture`. 하드코딩하지 않습니다.
+  `FCAPTURE_BIN` 을 지정했는데 실행할 수 없으면 다른 설치본으로 넘어가지 않고 에러를 반환합니다.
 
 ---
 
