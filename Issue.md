@@ -1,6 +1,6 @@
 # Issue Management
 
-* Issue HWM: 12
+* Issue HWM: 13
 * Checkpoints:
     - 8cb111b (2026-07-26) MCP 브릿지 구현 + Desktop config 정정
     - 02d1026 (2026-03-19)
@@ -27,6 +27,20 @@
 ---
 
 ## 📙 일반
+
+### Issue13: fpm-core 사본 Apache-2.0 전파 확인 + README 라이선스 절 예외 줄 교체 (prj1#Issue556 이관) (등록: 2026-09-28)
+* 목적: prj1#Issue550 이 fpm-core 원천 라이선스를 Apache-2.0 으로 고쳤다(prj1 4916a28). 이 repo 의 `fpm-core/` 는 fpm 번들 미러라 다음 fpm 출고(`deploy --with-marketplace`) 때 원천에서 전파된다. 전파 뒤 README 라이선스 절 예외 줄을 바꾸면 이 repo 전체가 OSI 오픈(MIT + Apache-2.0)이 된다(2026-09-28 사용자 지시로 prj1#Issue556 에서 이관)
+* trigger: prj1 fpm 다음 출고 — R1 재통과 → main 병합 → `deploy <level> --with-marketplace` (출고 보류 중: 사용자 «테스트가 더 필요함», 2026-09-28)
+* 상세:
+    - 현황(2026-09-28): `fpm-core/.claude-plugin/plugin.json` `license` = `PolyForm-Noncommercial-1.0.0` — 원천(prj1)만 `Apache-2.0`
+    - ⚠️ `fpm-core/` 는 여기서 직접 고치지 않는다 — `.fpm-integrity.json` 해시 대상이고 전파는 prj1 원천에서만 한다(Issue12 결과와 같은 이유)
+    - ⚠️ README 줄은 **전파 뒤에만** 바꾼다 — 먼저 바꾸면 미러 실물(PolyForm NC)과 README 가 어긋난다
+    - 바꿀 줄: README 라이선스 절 «`fpm-core/` 는 fpm 번들 미러이며 이 MIT 의 대상이 아니다» → «`fpm-core/` 는 Apache-2.0(fpm 번들 미러)»
+    - 짝: prj8#Issue1(fpm 미러 사본 확인)
+* 구현 명세:
+    - 검증: `fpm-core/.claude-plugin/plugin.json` `license` = `Apache-2.0` · `bash ~/_git/___pm/sh/gen-integrity-manifest.sh --check --bundle fpm-core` OK · README 예외 줄 교체
+    - 금지: `git push`(공개 라이선스 표기 변경은 사용자가 push)
+
 
 
 ---
