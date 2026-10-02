@@ -57,7 +57,7 @@
 * 상세:
     - 루트 `LICENSE` = MIT 원문(Copyright (c) 2026 Finfra Co., Ltd.) · 각 플러그인 `plugin.json` 에 `license` 필드가 있으면 `MIT` 로 통일(없으면 추가하지 않는다)
     - README 라이선스 절에 LICENSE 링크
-    - 정본 `/Users/nowage/_git/___architect/_doc_arch/license-profiles.md` §4 row 20 · 템플릿 `/Users/nowage/_git/___architect/data/template/license/README.md`(자리표 값 표 포함 — `{{N}}`=250 · `{{LICENSOR}}`=`Finfra Co., Ltd. (https://finfra.kr)` · `{{CONTACT}}`=finfra@gmail.com)
+    - 정본 `/Users/nowage/_git/___oracle/_doc_arch/license-profiles.md` §4 row 20 · 템플릿 `/Users/nowage/_git/___oracle/data/template/license/README.md`(자리표 값 표 포함 — `{{N}}`=250 · `{{LICENSOR}}`=`Finfra Co., Ltd. (https://finfra.kr)` · `{{CONTACT}}`=finfra@gmail.com)
 * 구현 명세:
     - 검증: `LICENSE` 존재 · README 라이선스 절 링크 · `grep -rn "All rights reserved" README*` 0건
     - 금지: `git push`(공개 라이선스 변경은 사용자가 push) · npm publish · 기존 릴리스 태그 변경
