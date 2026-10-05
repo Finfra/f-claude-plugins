@@ -55,4 +55,4 @@ b/c모드는 백엔드 서버를 사용한다. `/fpm-hub-server start|stop|resta
 
 ## 라이선스
 
-PolyForm Noncommercial 1.0.0 — 개인·비영리 무료, 기업 상용은 별도 라이선스(`COMMERCIAL.md`).
+Apache-2.0 — 개인·기업 모두 무료(상업 사용 포함). 이름·로고는 상표 정책(`TRADEMARK.md`)을 따른다. v0.8.3 까지 배포된 버전은 PolyForm Noncommercial 1.0.0 조건 유지 (prj1#Issue550).

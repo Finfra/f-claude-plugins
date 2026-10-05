@@ -13,7 +13,7 @@ date: 2026-05-19
 요청을 처리한 결과를 완전한 HTML 문서로 작성하여 설정 브라우저(hub_setting.yml `default_browser`)로 자동 표시함. 본문 HTML 은 `file://` 직접 open. Q&A 폼은 ___pm htm-server (port 9876) 로 fetch POST → inbox → bash polling 자동 회수.
 
 * **전제**: ___pm htm-server 상시 운영 (___pm 프로젝트가 lifecycle 책임)
-* **서버 down 시**: intercept hook 이 fail-loud — 사용자에게 `/board-server start` 후 재시도 또는 `..hub stop` 안내. paste-back fallback 없음 (Issue45 제거)
+* **서버 down 시**: intercept hook 이 fail-loud — 사용자에게 `/fpm-board-server start` 후 재시도 또는 `..hub stop` 안내. paste-back fallback 없음 (Issue45 제거)
 
 브라우저·오픈 방식은 `~/_git/___pm/data/hub_setting.yml` 의 `default_browser`·`browser_open` 이 결정 (Issue193 — 특정 브라우저명 하드코딩 금지). 기본 권장: 일반 브라우징용과 hub·dashboard 전용 브라우저 분리 운영.
 
@@ -33,7 +33,7 @@ date: 2026-05-19
 * `on` → 다음 턴부터 매 응답 자동 HTML 렌더 (trivial 응답은 Issue85 로 skip)
 * `off` → 프로젝트 폴더라도 자동 렌더 안 함 (`..hub stop` 과 동일 효과)
 * 인자 없는 `/show` 또는 `/show <요청>` 은 HTML 렌더 (아래 절차). `/hub <요청>` 도 deprecated alias 로 동일 동작
-* bare `..show <요청>` 은 render-only(워크플로우 차단) 모드 — 우산 토글 `..hub on`/`..hub start` 와 구분됨 (Issue133)
+* bare `..show <요청>` 은 render-only(워크플로우 차단) 모드 — 우산 토글 `..hub on`/`..hub off` 와 구분됨 (Issue133)
 * **단발 render-off (Issue159 신설·Issue163 구현)**: `..text` / `/text` / `..txt` / `/txt` → **이번 turn 한정** 자동 hub 렌더 skip(평문 채팅 응답). `..show`(단발 render-on)의 대칭. `fpm-hub-trigger.sh` 가 자동 모드 분기 평가 전에 감지 → suppress 컨텍스트 주입 후 exit. **state/flag 파일 무변경**(영속 토글 `..hub stop`/`off` 와 구분) → 다음 turn 자동 복귀. 작업은 정상 수행(HTML 미작성·브라우저 미open). ⚠️ 매처 regex `(\.\.te?xt|/te?xt)` 4종 동시 커버. Issue159 는 문서만 신설·매처 미구현이었고 Issue163 에서 본체 구현 + `..txt`/`/txt` alias 추가
 
 ## Mode 분리 (Issue45, 2026-05-19)
@@ -115,7 +115,7 @@ date: 2026-05-19
 
 1. Claude 응답 본문에 v1 sentinel 쌍 마커 작성 + 응답 종료
 2. Stop hook (`fpm-ask-marker-detect.sh`) 발동:
-    - `.hub-mode-active-<hash>` 플래그 없음 or effective=off → 무동작 (Issue283 cwd 스코프)
+    - `.hub-active/<hash>` 플래그 없음 or effective=off → 무동작 (Issue283 cwd 스코프)
     - 플래그 있음 + BEGIN/END 매칭 → JSON 파싱·schema 검증 → server healthz/register → reason 주입 (`decision: "block"`)
 3. Claude 다음 turn:
     - reason 의 지시대로 form HTML 작성 (각 카드: freetext/select 분기)
@@ -136,8 +136,8 @@ date: 2026-05-19
 | :--- | :--- |
 | 마커 JSON syntax error | hook reason 에 에러 메시지·schema 안내 |
 | schema 위반 (questions 누락 등) | hook reason 에 위반 필드 명시 |
-| 서버 down (healthz ≠ 200) | hook reason 에 `/board-server start` 또는 `..hub stop` 안내 |
-| `.hub-mode-active-<hash>` 없음 or effective=off | hook 즉시 exit 0 |
+| 서버 down (healthz ≠ 200) | hook reason 에 `/fpm-board-server start` 또는 `..hub stop` 안내 |
+| `.hub-active/<hash>` 없음 or effective=off | hook 즉시 exit 0 |
 | 단일 BEGIN 또는 단일 END 만 | 미매칭 (정규식 쌍 매칭 강제) → hook exit 0 |
 
 ### sentinel 노출 가이드 (Issue48)
@@ -300,7 +300,7 @@ ex)
             2. 일치 행의 `peacock.color` 컬럼 hex 값 사용 (ex: `#f0d5cc` for `~/.claude`)
             3. 일치 행이 없으면 fallback `hsl(hue, 60%, 45%)` (hue = cwd md5 hash 앞 4자 % 360)
         * peacock.color 는 파스텔 톤이므로 헤더 텍스트 색은 `#1a1a1a` (어두운 글자) 사용. 닫기 버튼도 `background: rgba(0,0,0,0.08); color: #1a1a1a; border: 1px solid rgba(0,0,0,0.15)` 등 어두운 글자 대비로 설정
-        * **⚠️ CANONICAL 헤더 블록 (Issue132) — 아래 HTML·CSS 를 verbatim 복붙하고 placeholder 2개만 치환**. 즉흥 재작성 금지 (정적 `<span>`·순서 뒤바뀜·헤더 밖 overflow 재발 원인). 치환: `{프로젝트명}`(ex `.claude`) · `{cwd 절대경로}`(ex `/Users/nowage/.claude`, Projects.md 등록 경로와 정확히 일치해야 서버 화이트리스트 통과) · `{session_id}`(🆚 세션 버튼 — 현재 세션 ID. hook 경유 시 자동 임베드, 수동 작성 시 hook 입력 `session_id`. 부재 시 cwd_hash fallback → 워크스페이스만 open) · `{hub_target}`(🎯📊 Hub 링크 탭 동작 — Issue153. `hub_setting.yml` `browser_tab_reuse: true` → `fpm-hub`(브라우저 네이티브 명명 탭 재사용 → `/hub` 단일탭 유지) / 그 외 → `_blank`(새 탭). hook 경유 시 자동 임베드, 수동 작성 시 기본 `_blank`). `{제목}` 만 콘텐츠별로 채움. 색은 아래 `:root --project-color` (위 PROJECT_COLOR 규칙) 가 결정.
+        * **⚠️ CANONICAL 헤더 블록 (Issue132) — 아래 HTML·CSS 를 verbatim 복붙하고 placeholder 2개만 치환**. 즉흥 재작성 금지 (정적 `<span>`·순서 뒤바뀜·헤더 밖 overflow 재발 원인). 치환: `{프로젝트명}`(ex `.claude`) · `{cwd 절대경로}`(ex `$HOME/.claude`, Projects.md 등록 경로와 정확히 일치해야 서버 화이트리스트 통과) · `{session_id}`(🆚 세션 버튼 — 현재 세션 ID. hook 경유 시 자동 임베드, 수동 작성 시 hook 입력 `session_id`. 부재 시 cwd_hash fallback → 워크스페이스만 open) · `{hub_target}`(🎯📊 Hub 링크 탭 동작 — Issue153. `hub_setting.yml` `browser_tab_reuse: true` → `fpm-hub`(브라우저 네이티브 명명 탭 재사용 → `/hub` 단일탭 유지) / 그 외 → `_blank`(새 탭). hook 경유 시 자동 임베드, 수동 작성 시 기본 `_blank`). `{제목}` 만 콘텐츠별로 채움. 색은 아래 `:root --project-color` (위 PROJECT_COLOR 규칙) 가 결정.
 
             > **렌더 vs /hub 탭 정책 (Issue153)**: 렌더(`..show`·자동 hub)는 `browser_tab_reuse` 와 무관하게 **항상 새 탭**(`open`/`open -g`) — 하나씩 닫으며 검토 가능. `browser_tab_reuse` 는 위 `{hub_target}` 을 통해 **`/hub` 대시보드 링크에만** 적용(단일탭 재사용). 구 Issue162(reuse helper 가 :9876 origin 매칭으로 모든 hub URL 을 한 탭에 collapse)는 폐기.
             ```html
@@ -465,6 +465,10 @@ flowchart TD
     - ❌ `P1["1. AI 프로젝트화"]` · `subgraph S1["2. 조합"]` · `N1["- 항목"]`
     - ✅ `P1["1단계 · AI 프로젝트화"]` · `subgraph S1["2) 조합"]` · `N1["항목"]`
     - hub 자동 렌더는 `ig-mermaid` 스킬을 호출하지 않아 룰이 컨텍스트에 없음 → 링크 참조로 불충분(Issue242 재발 근거). 본 인라인 규칙이 렌더 경로의 1차 가드
+* **⚠️ timeline period 에 콜론 금지 (Issue529 — 인라인 필수)**: `timeline` 에서 `:` 는 period↔event 구분자라, 줄 첫 칸에 시각(`HH:MM`)을 쓰면 다이어그램 **전체가 `Syntax error in text` 로 렌더 실패**(부분 깨짐이 아니라 통째로 죽음)
+    - ❌ `00:23:24 : 부팅` · `00:37~00:41 : 실측`
+    - ✅ `00.23.24 : 부팅` · `00시23분 : 부팅` · `2026-09-04 : 00:23 부팅`(구분자 뒤 event 의 콜론은 안전)
+    - 재발 실측: hub 렌더 문서 2건(2026-08-12·2026-09-04)이 같은 형태로 깨져 있었음. 렌더 경로가 스킬을 호출하지 않는 것이 원인이라 8-2 와 같은 이유로 인라인 필요
 * mermaid 문법·다이어그램 유형 선택 기준은 [`~/.claude/skills/ig-mermaid/mermaid-rules.md`](../skills/ig-mermaid/mermaid-rules.md) 참조
 * 노드 라벨 한국어 허용. 특수문자(`()`, `[]`, `:`, `"` 등) 포함 시 라벨을 `"..."` 로 감쌈
 * 다이어그램 1개당 노드 **3~12개 권장**. 초과 시 다이어그램을 의미 단위로 분할
@@ -564,7 +568,7 @@ dashboard 서버 lifecycle wrapper: [`~/.claude/commands/fpm-board-server.md`](f
 
 ## 양방향 Q&A (form 자동 회수) — Issue45
 
-`..show` 트리거(구 `..hub`)가 발동되면 `~/.claude/.hub-mode-active-<md5(cwd)[:8]>` 플래그 파일이 생성되어 양방향 모드 활성 (Issue283: cwd 스코프 — 세션 간 누수 차단). 후속 `AskUserQuestion` 호출은 `fpm-ask-intercept.sh` (PreToolUse hook) 가 가로채 form HTML 생성 + ___pm htm-server inbox 자동 회수 지시를 주입.
+`..show` 트리거(구 `..hub`)가 발동되면 `~/.claude/.hub-active/<md5(cwd)[:8]>` 플래그 파일이 생성되어 양방향 모드 활성 (Issue283: cwd 스코프 — 세션 간 누수 차단). 후속 `AskUserQuestion` 호출은 `fpm-ask-intercept.sh` (PreToolUse hook) 가 가로채 form HTML 생성 + ___pm htm-server inbox 자동 회수 지시를 주입.
 
 ### 동작 원리
 
@@ -572,7 +576,7 @@ dashboard 서버 lifecycle wrapper: [`~/.claude/commands/fpm-board-server.md`](f
 2. **AskUserQuestion 가로채기**: intercept hook 이 healthz + `/register` 판정 → **deny + form 자동 회수 지시 주입**
 3. **Form HTML 생성**: deny reason 에 포함된 질문 JSON + answer_url + cwd_hash 로 Claude 가 form HTML 생성·저장·브라우저 open
 4. **자동 회수**: 사용자 폼 작성 → "전송" 버튼 → JS fetch POST → server inbox → Claude bash polling → 답변 파일 Read → answers 추출 → 흐름 재개
-5. **서버 실패 시**: deny + fail-loud 안내 (`/board-server start` 후 재시도 또는 `..hub stop`). paste-back fallback 없음 (Issue45 제거)
+5. **서버 실패 시**: deny + fail-loud 안내 (`/fpm-board-server start` 후 재시도 또는 `..hub stop`). paste-back fallback 없음 (Issue45 제거)
 6. **해제**: `..hub stop` 또는 `..hub off` 입력 시 플래그 삭제, AskUserQuestion 정상 복귀
 
 ### 선택지 자동 승격 (Issue16_3) — form 자동 전환
@@ -583,7 +587,7 @@ dashboard 서버 lifecycle wrapper: [`~/.claude/commands/fpm-board-server.md`](f
 
 | # | 조건 | 판정 신호 |
 | :-: | :--- | :--- |
-| 1 | hub 모드 활성 | `~/.claude/.hub-mode-active-<hash>` 존재 **+ effective=on** (intercept hook 이 자동 감지·재판정, Issue283) |
+| 1 | hub 모드 활성 | `~/.claude/.hub-active/<hash>` 존재 **+ effective=on** (intercept hook 이 자동 감지·재판정, Issue283) |
 | 2 | 응답이 N개 선택지 제시 | 번호 매긴 옵션 리스트 (`1.`/`2.`/`3.` 또는 `A.`/`B.`/`C.` 또는 `- 옵션 1` `- 옵션 2`) — 2~4개 |
 | 3 | 결정 요청 문구 포함 | "선택해줘", "어느 옵션", "y/N", "번호로 답해", "선택하세요", "골라줘", "어떤 방식", "어느 쪽", "Yes/No" 등 사용자 결정 요청 표현 |
 
@@ -628,7 +632,7 @@ intercept hook 이 deny + form 자동 회수 reason 주입 → Claude 가 form H
 
 #### 비-hub 모드
 
-hub 모드 미활성(`.hub-mode-active-<hash>` 없음 or effective=off) → 본 규칙 적용 안 함. AskUserQuestion 호출은 평소대로 채팅 UI 에 표시.
+hub 모드 미활성(`.hub-active/<hash>` 없음 or effective=off) → 본 규칙 적용 안 함. AskUserQuestion 호출은 평소대로 채팅 UI 에 표시.
 
 ### Form HTML 템플릿 요구사항
 
@@ -724,11 +728,11 @@ hub 가 생성한 htm 문서 안에서 **다른 htm 문서를 iframe·링크로 
 
 - `~/.claude/hooks/fpm-hub-trigger.sh` (UserPromptSubmit, `..show` 감지[구 `..hub` deprecated] + 플래그 touch + 본문 HTML 지시 주입)
 - `~/.claude/hooks/fpm-ask-intercept.sh` (PreToolUse matcher=AskUserQuestion, healthz 판정 + form 자동 회수 지시 또는 fail-loud)
-- `~/.claude/.hub-mode-active-<md5(cwd)[:8]>` (cwd 스코프 플래그 파일, 빈 파일이면 활성 — Issue283)
+- `~/.claude/.hub-active/<md5(cwd)[:8]>` (cwd 스코프 플래그 파일, 빈 파일이면 활성 — Issue283)
 - `~/.claude/hooks/hub-scope.sh` (플래그 경로·effective 판정 공통 헬퍼 — Issue283)
 - `~/_git/___pm/services/hub/server.py` — `/healthz`, `/register`, `/answer` endpoint (___pm 소유, 상시 운영)
 - `/tmp/___pm/claude-htm-inbox/{cwd_hash}/{sid}/{ts}.json` — 답변 파일 (Issue90 sid 서브폴더 세션 격리, Claude Read 후 삭제)
-- `/board-server start|stop|status|restart` — 서버 lifecycle wrapper
+- `/fpm-board-server start|stop|status|restart` — 서버 lifecycle wrapper
 
 ## 분리 이력
 
