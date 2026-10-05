@@ -7,7 +7,7 @@
 #   ~/.claude/rules/global-scar-change-rules.md
 #
 # 동작:
-#   - .hub-mode-active-<hash> 플래그 없음 or effective=off → exit 0 [Issue283]
+#   - .hub-active/<hash> 플래그 없음 or effective=off → exit 0 [Issue283]
 #   - 플래그 있음 + 직전 assistant 응답에 v1 sentinel 쌍 BEGIN/END 마커 발견
 #     → 마커 JSON 파싱·검증 → server healthz/register → form HTML 생성 지시를
 #       Stop hook `decision: "block"` reason 으로 주입하여 다음 turn 에서 Claude
@@ -34,14 +34,17 @@
 set -u
 
 . "$HOME/.claude/hooks/hub-scope.sh"
-. "$HOME/.claude/hooks/lib/ask-common.sh"   # Issue424_2: 공용 컨텍스트 5블록 (SID·이름/색·OUT_DIR·서버·브라우저)
+# prj3#Issue545 — 번들(플러그인) 설치본은 ~/.claude/hooks/lib 가 없다. 자기 옆의 lib/ 로 폴백한다
+FPM_LIB_DIR="$HOME/.claude/hooks/lib"
+[ -d "$FPM_LIB_DIR" ] || FPM_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)/lib"
+. "$FPM_LIB_DIR/ask-common.sh"   # Issue424_2: 공용 컨텍스트 5블록 (SID·이름/색·OUT_DIR·서버·브라우저)
 # Issue370: stdin 파싱 단일 지점 — 종전엔 **같은 JSON 을 python3 로 4번** 파싱했다
 #   (transcript_path·cwd·session_id·stop_hook_active). no-op 경로에서도 전부 물어
 #   인터프리터 콜드 스타트를 4배로 냈다. jq 1회로 같은 값을 얻는다(F2-1 과 같은 교훈).
 # shellcheck source=/dev/null
 . "$HOME/.claude/hooks/hook-input.sh"
 
-input=$(cat)
+input=$(< /dev/stdin)   # prj3#Issue921 — cat fork 제거(부하 시 CPU 경합 몫)
 # Stop hook 입력 schema: transcript_path / session_id / cwd / stop_hook_active
 hook_input_parse "$input"
 transcript_path="${HOOK_TRANSCRIPT:-}"
@@ -203,7 +206,7 @@ ask_ctx_server "$cwd"
 
 if [ -z "$SERVER_TOKEN" ] || [ -z "$CWD_HASH" ] || [ -z "$INBOX_DIR" ]; then
   # Issue424_2: 구분자 인용 필수 — 미인용 heredoc 에서 본문 백틱이 **명령 치환으로 실행**되어
-  #   안내문의 `/dashboard-server start`·`..hub stop` 가 통째로 증발했다(스냅샷 m05 로 실증).
+  #   안내문의 `/fpm-board-server start`·`..hub stop` 가 통째로 증발했다(스냅샷 m05 로 실증).
   #   값은 env 로 주입한다.
   HEALTH="$health" python3 <<'PYEOF'
 import json, os
@@ -212,7 +215,7 @@ reason = (
     "## htm-form:auto 마커 감지됨 — server 미가용\n\n"
     f"healthz={health} / register 실패. form 자동 회수 단일 경로 (Issue45) 라 fallback 없음.\n\n"
     "### 조치 (사용자 선택)\n"
-    "1. `/dashboard-server start` 실행 후 응답 재작성 → 마커 재처리\n"
+    "1. `/fpm-board-server start` 실행 후 응답 재작성 → 마커 재처리\n"
     "2. `..hub stop` 입력 → hub 모드 해제, 일반 채팅으로 회답 받기"
 )
 print(json.dumps({"decision": "block", "reason": reason}, ensure_ascii=False))
