@@ -6,7 +6,7 @@
 #   ~/.claude/_doc_arch/hub-mode-arch.md. 절차: ~/.claude/rules/global-scar-change-rules.md
 #
 # 프롬프트에 a모드 render 트리거 `..show` (Issue133, 구 `..hub` deprecated alias) 감지 시:
-#   1. .hub-active/<md5(cwd)[:8]> 플래그 touch (Q&A intercept 활성화, Issue283 cwd 스코프)
+#   1. .hub-mode-active-<md5(cwd)[:8]> 플래그 touch (Q&A intercept 활성화, Issue283 cwd 스코프)
 #   2. HTML 렌더링 + 기본 브라우저 표시 + 후속 질문 form 처리 지시문 주입
 # `..hub stop` 또는 `..hub off` 감지 시 플래그 해제 (단방향 모드 복귀 — 토글은 `..hub` 유지)
 # Issue133: render 트리거만 `..hub`→`..show` rename. 우산 토글(`..hub on|off|start|stop`)·
@@ -22,12 +22,10 @@
 #   - hook 입력 JSON의 cwd에서 _doc_work/ 존재 확인 (Issue289)
 #   - 활성 htm/ → legacy z_htm/ → htm/ 신규 순으로 채택, 없으면 /tmp/ fallback
 
-# Issue714: bash 내장 읽기 — cat fork+exec(2.6ms) 제거. 청크 단위라 큰 프롬프트도 안전
-input=$(< /dev/stdin)
-# Issue283: cwd 스코프 플래그. cwd 파싱 후 `.hub-active/<hash>` 로 재할당됨(hub-context.sh).
+input=$(cat)
+# Issue283: cwd 스코프 플래그. cwd 파싱 후 `.hub-mode-active-<hash>` 로 재할당됨(아래).
 #   전역 단일 파일 시절엔 hub on 세션 플래그를 off 세션 hook 이 주워 b모드 form 이 누수됨.
-#   2026-09-05: 루트 산재(`.hub-mode-active-<hash>`) → `.hub-active/` 디렉토리로 이전.
-FLAG_FILE="$HOME/.claude/.hub-active/none"
+FLAG_FILE="$HOME/.claude/.hub-mode-active-none"
 # Issue83: 프로젝트 폴더 hub 기본 on — per-cwd 상태 파일로 override
 STATE_DIR="$HOME/.claude/.hub-state"
 # Issue105: 시스템 단위 마스터 OFF 플래그 (모든 프로젝트 자동 모드 차단)
@@ -116,11 +114,9 @@ import hashlib, json, os
 home = os.path.expanduser("~")
 system_off = os.path.exists(os.path.join(home, ".claude", ".hub-system-off"))
 state_dir = os.path.join(home, ".claude", ".hub-state")
-# FPM_PROJECTS_MD: 테스트 격리용 override (prj1#Issue550)
-projects_md = os.environ.get("FPM_PROJECTS_MD") or os.path.join(home, "_git", "___pm", "Projects.md")
+projects_md = os.path.join(home, "_git", "___pm", "Projects.md")
 
 rows = []
-emoji_i = 6  # 헤더 없는 구 8컬럼 표 fallback
 try:
     with open(projects_md, encoding="utf-8") as f:
         for line in f:
@@ -129,17 +125,12 @@ try:
             cells = [c.strip() for c in line.strip().strip("|").split("|")]
             if len(cells) < 5:
                 continue
-            # prj1#Issue550: 이모지 열은 헤더 명칭으로 찾는다 — tdd·license 컬럼이 이모지 앞에 끼어
-            #   위치 인덱스(cells[6])는 tdd 값을 집었다. server.py 와 같은 판정.
-            if "id" in cells and any("color" in c.lower() for c in cells):
-                emoji_i = next((i for i, c in enumerate(cells) if "이모지" in c), emoji_i)
-                continue
             try:
                 pid = int(cells[0])
             except ValueError:
                 continue  # 헤더·구분선 행 skip
             name = cells[1]
-            emoji = cells[emoji_i] if len(cells) > emoji_i else ""
+            emoji = cells[6] if len(cells) > 6 else ""
             path = cells[4].strip("`").strip() if len(cells) > 4 else ""
             rows.append((pid, name, emoji, path))
 except FileNotFoundError:
@@ -182,57 +173,8 @@ PYEOF
   exit 0
 fi
 
-# ── hub-context 로드 가드 (prj3#Issue543) ────────────────────────────────
-#   ⚠️ 이 파일은 **번들로도 배포된다**. 그런데 번들에 `hooks/lib/` 가 없다 —
-#   prj1 `fpm-bundle-sync.sh` 의 `sync_dir_by_name` 이 "번들에 이미 있는 것만"
-#   동기하므로 신규 디렉토리는 영영 오지 않고, `scar-manifest.yml` 에도 선언이 없다.
-#
-#   이 스크립트에는 `set -e`·`set -u` 가 없다. 가드가 없으면 source 가 실패해도
-#   **죽지 않고 계속 진행**해서 `hub_ctx_identity`(L178)·`hub_ctx_surface`(L506)·
-#   `hub_ctx_live_preopen`(L538) 이 전부 `command not found` 로 새고, 사용자에게는
-#   "hub 가 안 뜬다" 로만 보인다. **조용한 열화가 가장 나쁜 형태**라 fail-loud 로 바꾼다.
-#
-#   실측(2026-09-05): fg1·jma 둘 다 `hooks/lib/` 부재. 다만 설치본이 fpm-core 0.8.1
-#   이고 그 번들에는 이 hook 자체가 없어 **아직 터지지 않았다** — 다음 릴리스를
-#   배포하는 순간 발생한다. 근본 조치(번들·매니페스트 편입)는 prj1 자산이다.
-# prj3#Issue545 — 번들(플러그인) 설치본은 `~/.claude/hooks/lib/` 가 없다. 자기 옆의 `lib/` 를 먼저 본다
-#   (번들에 hooks/lib 편입). 그래도 없으면 종전 절대경로 → Issue543 가드가 경고한다.
-# Issue714: 자기 위치 계산(`dirname` fork + 서브셸)은 절대경로 lib 가 **없을 때만** 한다 —
-#   jm4 등 저작 머신은 항상 있으므로 매 프롬프트 ~3ms 를 공짜로 쓰고 있었다. 판정은 종전과 같다.
-HUB_CTX_LIB="$HOME/.claude/hooks/lib/hub-context.sh"
-if [ ! -f "$HUB_CTX_LIB" ]; then
-  _SELF_LIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)/lib/hub-context.sh"
-  [ -f "$_SELF_LIB" ] && HUB_CTX_LIB="$_SELF_LIB"
-fi
-if [ -r "$HUB_CTX_LIB" ]; then
-  . "$HUB_CTX_LIB"
-else
-  python3 - <<'PYEOF'
-import json
-print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit",
-  "additionalContext": (
-    "## ⚠️ hub 렌더 비활성 — `hooks/lib/hub-context.sh` 부재 (prj3#Issue543)\n\n"
-    "이 머신의 설치본에 `hooks/lib/` 가 없어 hub 트리거가 컨텍스트를 만들 수 없다. "
-    "**hub 렌더·Q&A 폼·board 진입이 이번 세션에서 동작하지 않는다.**\n\n"
-    "- 요청된 작업 자체는 정상 수행할 것 — 렌더는 결과의 *표현*이지 작업이 아니다\n"
-    "- 복구: 저작 머신(jm4)에서 `hooks/lib/` 를 번들·`scar-manifest.yml` 에 편입 후 재배포"
-  )}}, ensure_ascii=False))
-PYEOF
-  exit 0
-fi
+. "$HOME/.claude/hooks/lib/hub-context.sh"
 hub_ctx_identity
-
-# prj3#Issue921 — 트리거가 있을 수 없고(선행 게이트 0) hub 가 off 면 이 턴의 결론은 «플래그 정리» 하나다.
-#   아래 분기는 전부 _hub_pmatch 로 열리므로 하나도 서지 않고, 미등록 게이트·라이브 선오픈도 on/`..show`
-#   에서만 일한다. 그런데 표면 계산(hub_setting 파싱 awk · hub_cfg 서브셸 · 포트 프로브)을 다 돌고 나서야
-#   그 결론에 닿았다 — 부하 시 UPS 임계 경로의 몫. 결론이 같으니 표면 전에 끝낸다(판정은 같은 hub_effective)
-if [ "$_HUB_TRIG_MAYBE" = 0 ]; then
-  EFFECTIVE=$(hub_effective "$cwd")
-  if [ "$EFFECTIVE" != "on" ]; then
-    [ -e "$FLAG_FILE" ] && rm -f "$FLAG_FILE"
-    exit 0
-  fi
-fi
 
 # Issue163: `..text`/`..txt`/`/text`/`/txt` — 단발(이번 turn 한정) render-off 트리거.
 #   state/flag 파일 무변경 (영속 토글 `..hub stop`/`off` 와 구분). 본 turn 자동 hub 렌더만 suppress.
@@ -414,10 +356,10 @@ auto_kill = os.environ.get('AUTO_KILL', 'false') == 'true'
 
 if not health_ok:
     context = (
-        "## ⚠️ `..board` 트리거 — hub 서버(fpm-board-server) 미실행\n\n"
+        "## ⚠️ `..board` 트리거 — dashboard-server 미실행\n\n"
         f"Mode C(dashboard) agent 는 ___pm 서버 (port {server_port}, htm-server daemon) 필수. healthz 실패.\n\n"
         "### 즉시 조치\n"
-        "1. 사용자에게 `/fpm-board-server start` 안내 (Issue138 fpm-* 리네임 · prj3#Issue829)\n"
+        "1. 사용자에게 `/dashboard-server start` 안내 (Issue37 이후 명칭)\n"
         "2. 시작 후 다시 `..board <topic>` 입력 (별칭: `..hub dash` / `..dashboard`)\n\n"
         "본 turn 응답: agent 호출 금지. 채팅으로 서버 미실행 안내만."
     )
@@ -434,8 +376,8 @@ else:
         "   ```\n"
         "   Agent(\n"
         "     description='dashboard 시작',\n"
-        "     subagent_type='fpm-board',\n"
-        "     prompt='topic=<TOPIC>; cwd=" + cwd + "; htm-server 활성. tmux pane 에서 runner 시작 + dashboard push. ~/.claude/agents/fpm-board.md 절차 따를 것.'\n"
+        "     subagent_type='dashboard',\n"
+        "     prompt='topic=<TOPIC>; cwd=" + cwd + "; htm-server 활성. tmux pane 에서 runner 시작 + dashboard push. ~/.claude/agents/fpm-dashboard.md 절차 따를 것.'\n"
         "   )\n"
         "   ```\n"
         "3. agent 반환 결과를 채팅에 그대로 전달 (요약 + stable URL + pane 명령 + 핵심 데이터)\n\n"
@@ -513,7 +455,7 @@ topic_clause = f"`{topic}`" if topic else "(트리거에 주제 없음 — 사�
 context = (
     "## `..ask` 트리거 감지 — b모드 (양방향 Q&A 폼 자동 회수, Issue126)\n\n"
     f"주제 = {topic_clause}\n\n"
-    "`.hub-active/<hash>` 플래그 활성화됨. 본 turn 은 **사용자에게 결정을 묻는 폼 1회 제시**가 목적 "
+    "`.hub-mode-active-<hash>` 플래그 활성화됨. 본 turn 은 **사용자에게 결정을 묻는 폼 1회 제시**가 목적 "
     "(\"나에게 물어봐\" 모드 — 응답 자체가 결정 회수 폼).\n\n"
     "### 처리 절차 (필수)\n"
     "1. 주제에 대해 사용자가 선택할 **2~4개 옵션**을 도출 (권장안은 첫 옵션 + label 끝 `(권장)`).\n"
@@ -525,7 +467,7 @@ context = (
     "3. 텍스트 bullet 리스트로 선택지를 dump 하지 말 것 — 결정 요청은 반드시 `AskUserQuestion` 호출로 분리.\n\n"
     f"### 서버 전제\n"
     f"- ___pm htm-server (port {server_port}) 상시 운영 전제. 서버 down 시 intercept hook 이 fail-loud "
-    "(`/fpm-board-server start` 후 재시도 또는 `..hub stop` 안내).\n\n"
+    "(`/dashboard-server start` 후 재시도 또는 `..hub stop` 안내).\n\n"
     "### 채팅 fallback 의무 (Issue60)\n"
     "- 폼 열림 안내 + 질문 텍스트 + 옵션 라벨/desc + 저장 경로 포함 (Firefox 부재 가정, 채팅만으로 답 가능).\n\n"
     "### 모드 관계\n"
@@ -594,52 +536,6 @@ fi
 
 hub_ctx_live_preopen
 
-# prj3#Issue921 — 렌더 지시문 캐시. hub-instruction.py 는 **env 18개 + mode 만 받는 순수 함수**다(파일·시각을
-#   읽지 않는다). 등록 프로젝트 자동 모드는 매 턴 python3(≈20ms CPU — 부하 시 UPS 임계 경로)를 띄워 같은
-#   지시문을 다시 만들었다 → 입력 전체를 지문으로 묶어 출력을 캐시한다. 지문이 다르거나 스크립트가 캐시보다
-#   새로우면 다시 만든다. ⚠️ hub-instruction.py 가 새 env 를 읽게 고치면 아래 지문과 env 목록에 같이 넣을 것
-#   (빠뜨리면 그 입력이 바뀌어도 낡은 지시문이 나간다). 쓰기는 mv 로 원자적 — 반쯤 쓴 파일을 읽지 않는다
-HUB_INSTR_PY="$HOME/.claude/hooks/lib/hub-instruction.py"
-_hub_instr() {  # <show|auto>
-  local mode="$1" fp f c out us=$'\x1f' rs=$'\x1e'
-  fp="v1$us$mode$us${PROJECT_NAME-}$us${PROJECT_COLOR-}$us${cwd-}$us${SID-}$us${SID_FULL-}$us${OUT_DIR-}"
-  fp="$fp$us${HTM_OPEN_CMD-}$us${HUB_RENDER_TRIGGER-}$us${RENDER_TARGET-}$us${HUB_OPEN_SKIP-}$us${RENDER_HOST-}"
-  fp="$fp$us${RENDER_PORT-}$us${HUB_LINK_TARGET-}$us${ZED_DOWNGRADED-}$us${HUB_DOWN_DOWNGRADED-}"
-  fp="$fp$us${LIVE_OPENED-}$us${LIVE_URL-}$us${LIVE_DISPLAY-}"
-  f="${_HUBCTX_CACHE_DIR:-${TMPDIR:-/tmp}/___pm/hubctx}/${_HUBCTX_KEY:-none}.${SID:-none}.$mode"
-  if [ -s "$f" ] && [ "$f" -nt "$HUB_INSTR_PY" ]; then
-    c=$(< "$f")
-    if [ "${c%%"$rs"*}" = "$fp" ]; then
-      printf '%s\n' "${c#*"$rs"}"
-      return 0
-    fi
-  fi
-  out=$(PROJECT_NAME="${PROJECT_NAME-}" \
-    PROJECT_COLOR="${PROJECT_COLOR-}" \
-    PROJECT_CWD="${cwd-}" \
-    SID="${SID-}" \
-    SID_FULL="${SID_FULL-}" \
-    OUT_DIR="${OUT_DIR-}" \
-    HTM_OPEN_CMD="${HTM_OPEN_CMD-}" \
-    HUB_RENDER_TRIGGER="${HUB_RENDER_TRIGGER-}" \
-    RENDER_TARGET="${RENDER_TARGET-}" \
-    HUB_OPEN_SKIP="${HUB_OPEN_SKIP-}" \
-    RENDER_HOST="${RENDER_HOST-}" \
-    RENDER_PORT="${RENDER_PORT-}" \
-    HUB_LINK_TARGET="${HUB_LINK_TARGET-}" \
-    ZED_DOWNGRADED="${ZED_DOWNGRADED-}" \
-    HUB_DOWN_DOWNGRADED="${HUB_DOWN_DOWNGRADED-}" \
-    LIVE_OPENED="${LIVE_OPENED-}" \
-    LIVE_URL="${LIVE_URL-}" \
-    LIVE_DISPLAY="${LIVE_DISPLAY-}" \
-    python3 "$HUB_INSTR_PY" "$mode")
-  [ -n "$out" ] || return 0   # 생성 실패 — 종전처럼 무출력, 캐시하지 않는다
-  printf '%s\n' "$out"
-  { mkdir -p "${f%/*}" && printf '%s%s%s' "$fp" "$rs" "$out" > "$f.$$" && mv -f "$f.$$" "$f"; } 2>/dev/null \
-    || rm -f "$f.$$" 2>/dev/null
-  return 0
-}
-
 if [ -n "$HUB_RENDER_TRIGGER" ]; then
   # 플래그 활성화 — 후속 AskUserQuestion 을 form 으로 가로채기 위함
   touch "$FLAG_FILE"
@@ -648,7 +544,25 @@ if [ -n "$HUB_RENDER_TRIGGER" ]; then
   #   "off 기본 + ..show 1회성" 모델과 충돌 → 제거. 자동 모드 재개는 STATE_FILE/IS_PROJECT default 가 결정.
 
   # --new flag 제거 (호환성 위해 prompt 에서 인식만, 동작 변화 없음)
-  _hub_instr show
+  PROJECT_NAME="$PROJECT_NAME" \
+    PROJECT_COLOR="$PROJECT_COLOR" \
+    PROJECT_CWD="$cwd" \
+    SID="$SID" \
+    SID_FULL="$SID_FULL" \
+    OUT_DIR="$OUT_DIR" \
+    HTM_OPEN_CMD="$HTM_OPEN_CMD" \
+    HUB_RENDER_TRIGGER="$HUB_RENDER_TRIGGER" \
+    RENDER_TARGET="$RENDER_TARGET" \
+    HUB_OPEN_SKIP="$HUB_OPEN_SKIP" \
+    RENDER_HOST="$RENDER_HOST" \
+    RENDER_PORT="$RENDER_PORT" \
+    HUB_LINK_TARGET="$HUB_LINK_TARGET" \
+    ZED_DOWNGRADED="$ZED_DOWNGRADED" \
+    HUB_DOWN_DOWNGRADED="$HUB_DOWN_DOWNGRADED" \
+    LIVE_OPENED="$LIVE_OPENED" \
+    LIVE_URL="$LIVE_URL" \
+    LIVE_DISPLAY="$LIVE_DISPLAY" \
+    python3 "$HOME/.claude/hooks/lib/hub-instruction.py" show
   exit 0
 fi
 
@@ -660,11 +574,27 @@ fi
 if [ "$EFFECTIVE" = "on" ]; then
   # 플래그 활성화 — 후속 AskUserQuestion intercept + 선택지 자동 승격용
   touch "$FLAG_FILE"
-  _hub_instr auto
+  PROJECT_NAME="$PROJECT_NAME" \
+    PROJECT_COLOR="$PROJECT_COLOR" \
+    PROJECT_CWD="$cwd" \
+    SID="$SID" \
+    SID_FULL="$SID_FULL" \
+    OUT_DIR="$OUT_DIR" \
+    HTM_OPEN_CMD="$HTM_OPEN_CMD" \
+    RENDER_TARGET="$RENDER_TARGET" \
+    HUB_OPEN_SKIP="$HUB_OPEN_SKIP" \
+    RENDER_HOST="$RENDER_HOST" \
+    RENDER_PORT="$RENDER_PORT" \
+    HUB_LINK_TARGET="$HUB_LINK_TARGET" \
+    ZED_DOWNGRADED="$ZED_DOWNGRADED" \
+    HUB_DOWN_DOWNGRADED="$HUB_DOWN_DOWNGRADED" \
+    LIVE_OPENED="$LIVE_OPENED" \
+    LIVE_URL="$LIVE_URL" \
+    LIVE_DISPLAY="$LIVE_DISPLAY" \
+    python3 "$HOME/.claude/hooks/lib/hub-instruction.py" auto
 else
   # 비프로젝트 + 마커 없음, 또는 이 폴더 off 기록 → 플래그 비활성 (intercept 미동작)
-  # Issue714: 대부분의 no-op 턴은 플래그가 이미 없다 — 있을 때만 rm 을 띄운다(매 프롬프트 fork 1회 절감)
-  [ -e "$FLAG_FILE" ] && rm -f "$FLAG_FILE"
+  rm -f "$FLAG_FILE"
 fi
 
 exit 0

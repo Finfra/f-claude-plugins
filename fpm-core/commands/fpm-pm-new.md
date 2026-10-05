@@ -50,8 +50,8 @@ skill: "pm" (action: new)
 `projects/{번호}` 및 `Projects.md` 기록 직전에 `$HOME` 접두사를 `~`로 치환:
 
 * 입력 경로가 `$HOME` (=`/Users/{user}`) 으로 시작 → `~`로 치환 후 저장
-    - ex) `$HOME/work/AgenticCoding_lec` → `~/work/AgenticCoding_lec`
-    - ex) `$HOME/_git/__all/foo` → `~/_git/__all/foo`
+    - ex) `/Users/nowage/work/AgenticCoding_lec` → `~/work/AgenticCoding_lec`
+    - ex) `/Users/nowage/_git/__all/foo` → `~/_git/__all/foo`
 * 입력 경로가 `$HOME` 외부 (ex: `/Volumes/...`, `/opt/...`, `/tmp/...`) → 그대로 저장
 * 이미 `~`로 시작 → 그대로 저장
 * 상대 경로(`./foo`, `foo`) → `realpath`로 절대 변환 후 위 규칙 재적용

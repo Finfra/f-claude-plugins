@@ -71,7 +71,7 @@ check("CSP: script-src nonce + jsdelivr 한정",
 import re as _re  # noqa: E402
 _URI_RE = _re.compile(md_shell.ALLOWED_URI_REGEXP, _re.IGNORECASE)
 check("vscode://file 링크 허용 (Issue201 회귀 차단)",
-      _URI_RE.match("vscode://file$HOME/_git/___pm/Issue.md") is not None)
+      _URI_RE.match("vscode://file/Users/nowage/_git/___pm/Issue.md") is not None)
 check("http(s)·mailto 등 기본 스킴 유지",
       all(_URI_RE.match(u) for u in
           ("https://ex.com/a", "http://127.0.0.1:9876/hub", "mailto:a@b.c", "tel:+8210")))
