@@ -1,6 +1,6 @@
 {
   "name": "fbanner",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Split images/PDFs/SVGs into grid tiles via fBanner REST API",
   "author": {
     "name": "nowage",

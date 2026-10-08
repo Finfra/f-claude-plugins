@@ -1,6 +1,6 @@
 {
   "name": "fwarrange",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Save/restore macOS window layouts, manage context modes, and configure the fWarrange helper via REST API",
   "author": {
     "name": "nowage",
