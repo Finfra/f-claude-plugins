@@ -1,6 +1,6 @@
 # Issue Management
 
-* Issue HWM: 13
+* Issue HWM: 14
 * Checkpoints:
     - 8cb111b (2026-07-26) MCP 브릿지 구현 + Desktop config 정정
     - 02d1026 (2026-03-19)
@@ -27,6 +27,17 @@
 ---
 
 ## 📙 일반
+
+### Issue14: [fSnippet] 플러그인 문서의 `cli/pause` 의미 정정 + `plugin.json` `mcpServers` 절대경로 하드코딩 제거 (등록: 2026-10-15, 출처: prj25#Issue264)
+* 목적: fSnippet 플러그인이 실제 동작과 다른 서술을 싣고, 다른 머신·사용자에서 MCP 서버를 못 띄운다 — 실측 기준으로 고친다
+* 상세:
+    - 출처: prj25(fSnippetCli) Issue264 «매뉴얼 밖 낡은 서술 정리» ①·⑤ 중 이 repo 몫 — prj25 쪽 문서(`api/openapi_v2.yaml`·`cli/README*`·`mcp/README*`)는 prj25 에서 정정 완료
+    - ① `fSnippet/skills/fsnippet/SKILL.md`(L11·L239·L248)·`fSnippet/README.md`(L76)·`fSnippet/README_kr.md`(L76) 가 `POST /api/v2/cli/pause` 를 «스니펫 확장 일시정지» 로 쓴다. 실측(2026-10-15 jm4, fSnippetCli 1.2.0): pause 는 **REST API 만** 멈춤 — `/api/v2/cli/*` 외 요청 `503`, 스니펫 확장은 계속 동작(`APIServer.swift` Pause guard)
+    - ⑤ `fSnippet/plugin.json` `mcpServers.fsnippet.args` = `/Users/nowage/_git/__all/f-claude-plugins/fSnippet/mcp-server.js` 절대경로. 같은 패턴이 `fBanner`·`fWarrange` 등 다른 `plugin.json` 에도 있음(일괄 점검 대상)
+* 구현 명세:
+    - 문서 3곳: pause = «REST API 일시정지(확장은 계속 동작)», resume = «REST API 재개» 로 교체
+    - `plugin.json`: `"args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server.js"]` 로 교체(검증 필요 — 이 repo 플러그인 로더가 해당 변수를 확장하는지 확인 후). 다른 플러그인도 같은 방식으로 일괄
+    - 검증: `grep -rn "/Users/nowage" */plugin.json` 0건 · 플러그인 재설치 후 MCP 서버 기동 확인
 
 ### Issue13: fpm-core 사본 Apache-2.0 전파 확인 + README 라이선스 절 예외 줄 교체 (prj1#Issue556 이관) (등록: 2026-09-28)
 * 목적: prj1#Issue550 이 fpm-core 원천 라이선스를 Apache-2.0 으로 고쳤다(prj1 4916a28). 이 repo 의 `fpm-core/` 는 fpm 번들 미러라 다음 fpm 출고(`deploy --with-marketplace`) 때 원천에서 전파된다. 전파 뒤 README 라이선스 절 예외 줄을 바꾸면 이 repo 전체가 OSI 오픈(MIT + Apache-2.0)이 된다(2026-09-28 사용자 지시로 prj1#Issue556 에서 이관)
