@@ -70,3 +70,6 @@ graphify-out/
 # (fg1 실측 2026-08-27 — 부트스트랩 폴백이 대신 메웠으나 정본 배치가 우선이다).
 !**/icons/
 !**/icons/**
+
+# prj3#Issue1096 — 업무 접수대장은 제품 git 이력 밖 (request-rules)
+/Request.md
