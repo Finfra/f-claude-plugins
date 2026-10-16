@@ -1,6 +1,6 @@
 # Issue Management
 
-* Issue HWM: 17
+* Issue HWM: 19
 * Checkpoints:
     - 8cb111b (2026-07-26) MCP 브릿지 구현 + Desktop config 정정
     - 02d1026 (2026-03-19)
