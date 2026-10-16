@@ -60,20 +60,6 @@
     - 금지: 사용자 실데이터 폴더에 테스트 스니펫을 남기지 않는다 · `git push`
     - ⚠️ `Issue.md` 작업트리에 a5af46e(2026-09-06) 스냅샷 기반 타 세션 미커밋 재포맷(+40/-95)이 있다 — 커밋은 내 블록만 싣는다(`git add -p` 또는 HEAD blob 에 블록만 적용). `issue-tx.py` 는 이 repo 의 `###` 헤더를 인식하지 못한다(Issue12 도구 한계)
 
-### Issue14: [fSnippet] 플러그인 문서의 `cli/pause` 의미 정정 + `plugin.json` `mcpServers` 절대경로 하드코딩 제거 (등록: 2026-10-15, 출처: prj25#Issue264)
-* 목적: fSnippet 플러그인이 실제 동작과 다른 서술을 싣고, 다른 머신·사용자에서 MCP 서버를 못 띄운다 — 실측 기준으로 고친다
-* 상세:
-    - 출처: prj25(fSnippetCli) Issue264 «매뉴얼 밖 낡은 서술 정리» ①·⑤ 중 이 repo 몫 — prj25 쪽 문서(`api/openapi_v2.yaml`·`cli/README*`·`mcp/README*`)는 prj25 에서 정정 완료
-    - ① `fSnippet/skills/fsnippet/SKILL.md`(L11·L233-234·L239·L240·L248·L249)·`fSnippet/README.md`(L76·L77)·`fSnippet/README_kr.md`(L76·L77) 가 `POST /api/v2/cli/pause` 를 «스니펫 확장 일시정지» 로 쓴다. 실측(2026-10-15 jm4, fSnippetCli 1.2.0): pause 는 **REST API 만** 멈춤 — `/api/v2/cli/*` 외 요청 `503`, 스니펫 확장은 계속 동작(`APIServer.swift` Pause guard)
-    - ⑤ `fSnippet/plugin.json` `mcpServers.fsnippet.args` = `/Users/nowage/_git/__all/f-claude-plugins/fSnippet/mcp-server.js` 절대경로. 같은 패턴이 `fBanner`·`fBoard`·`fCapture`·`fGoogleSheet`·`fQRGen`·`fWarrange` `plugin.json` 에도 있음 — 7개 전부(2026-10-16 prj25 검토 실측)
-    - 보강(2026-10-16, prj25 검토): 등록 당시 목록에서 resume 행(SKILL.md L240·L249, README* L77)과 SKILL.md L233-234 «temporarily suspending snippet expansion» 이 빠져 있었다 — 같은 오류라 함께 고친다
-    - 근거: 같은 repo `fpm-core/hooks/hooks.json` 이 이미 `${CLAUDE_PLUGIN_ROOT}` 를 쓴다(hooks 에서의 확장 선례). `mcpServers` 에서도 확장되는지는 재설치로 실측한다
-    - ⚠️ prj25 원본 `agents/claude/README*.md` 의 수동 설치 예시(`cp plugin.json`)도 절대경로를 퍼뜨린다 — 그 정정은 prj25 몫(여기서 고치지 않음)
-* 구현 명세:
-    - 문서 3곳: pause = «REST API 일시정지(확장은 계속 동작)», resume = «REST API 재개» 로 교체
-    - `plugin.json`: `"args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server.js"]` 로 교체(검증 필요 — 이 repo 플러그인 로더가 해당 변수를 확장하는지 확인 후). 다른 플러그인도 같은 방식으로 일괄
-    - 검증: `grep -rn "/Users/nowage" */plugin.json` 0건 · 플러그인 재설치 후 MCP 서버 기동 확인
-
 ### Issue13: fpm-core 사본 Apache-2.0 전파 확인 + README 라이선스 절 예외 줄 교체 (prj1#Issue556 이관) (등록: 2026-09-28)
 * 목적: prj1#Issue550 이 fpm-core 원천 라이선스를 Apache-2.0 으로 고쳤다(prj1 4916a28). 이 repo 의 `fpm-core/` 는 fpm 번들 미러라 다음 fpm 출고(`deploy --with-marketplace`) 때 원천에서 전파된다. 전파 뒤 README 라이선스 절 예외 줄을 바꾸면 이 repo 전체가 OSI 오픈(MIT + Apache-2.0)이 된다(2026-09-28 사용자 지시로 prj1#Issue556 에서 이관)
 * trigger: prj1 fpm 다음 출고 — R1 재통과 → main 병합 → `deploy <level> --with-marketplace` (출고 보류 중: 사용자 «테스트가 더 필요함», 2026-09-28)
@@ -96,6 +82,26 @@
 ---
 
 ## ✅ 완료
+
+### Issue14: [fSnippet] 플러그인 문서의 `cli/pause` 의미 정정 + `plugin.json` `mcpServers` 절대경로 하드코딩 제거 (등록: 2026-10-15, 완료: 2026-10-16, 출처: prj25#Issue264)
+* Hash: 0bb5531
+* 목적: fSnippet 플러그인이 실제 동작과 다른 서술을 싣고, 다른 머신·사용자에서 MCP 서버를 못 띄운다 — 실측 기준으로 고친다
+* 상세:
+    - 출처: prj25(fSnippetCli) Issue264 «매뉴얼 밖 낡은 서술 정리» ①·⑤ 중 이 repo 몫 — prj25 쪽 문서(`api/openapi_v2.yaml`·`cli/README*`·`mcp/README*`)는 prj25 에서 정정 완료
+    - ① `fSnippet/skills/fsnippet/SKILL.md`(L11·L233-234·L239·L240·L248·L249)·`fSnippet/README.md`(L76·L77)·`fSnippet/README_kr.md`(L76·L77) 가 `POST /api/v2/cli/pause` 를 «스니펫 확장 일시정지» 로 쓴다. 실측(2026-10-15 jm4, fSnippetCli 1.2.0): pause 는 **REST API 만** 멈춤 — `/api/v2/cli/*` 외 요청 `503`, 스니펫 확장은 계속 동작(`APIServer.swift` Pause guard)
+    - ⑤ `fSnippet/plugin.json` `mcpServers.fsnippet.args` = `/Users/nowage/_git/__all/f-claude-plugins/fSnippet/mcp-server.js` 절대경로. 같은 패턴이 `fBanner`·`fBoard`·`fCapture`·`fGoogleSheet`·`fQRGen`·`fWarrange` `plugin.json` 에도 있음 — 7개 전부(2026-10-16 prj25 검토 실측)
+    - 보강(2026-10-16, prj25 검토): 등록 당시 목록에서 resume 행(SKILL.md L240·L249, README* L77)과 SKILL.md L233-234 «temporarily suspending snippet expansion» 이 빠져 있었다 — 같은 오류라 함께 고친다
+    - 근거: 같은 repo `fpm-core/hooks/hooks.json` 이 이미 `${CLAUDE_PLUGIN_ROOT}` 를 쓴다(hooks 에서의 확장 선례). `mcpServers` 에서도 확장되는지는 재설치로 실측한다
+    - ⚠️ prj25 원본 `agents/claude/README*.md` 의 수동 설치 예시(`cp plugin.json`)도 절대경로를 퍼뜨린다 — 그 정정은 prj25 몫(여기서 고치지 않음)
+* 구현 명세:
+    - 문서 3곳: pause = «REST API 일시정지(확장은 계속 동작)», resume = «REST API 재개» 로 교체
+    - `plugin.json`: `"args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server.js"]` 로 교체(검증 필요 — 이 repo 플러그인 로더가 해당 변수를 확장하는지 확인 후). 다른 플러그인도 같은 방식으로 일괄
+    - 검증: `grep -rn "/Users/nowage" */plugin.json` 0건 · 플러그인 재설치 후 MCP 서버 기동 확인
+* 결과:
+    - `fSnippet/skills/fsnippet/SKILL.md`·`README.md`·`README_kr.md`: pause = «REST API 일시정지(확장은 계속 동작)» · resume = «REST API 재개» · 도입부·CLI Control 절 «suspending snippet expansion» 도 함께 정정
+    - `plugin.json` 7종(fBanner·fBoard·fCapture·fGoogleSheet·fQRGen·fSnippet·fWarrange) `mcpServers.*.args` → `${CLAUDE_PLUGIN_ROOT}/mcp-server.js`. 확장 선례: 공식 플러그인 `.mcp.json`(discord 등)이 `mcpServers` 에서 같은 변수를 쓴다
+    - 검증: [v] `grep -rn "/Users/nowage" */plugin.json` 0건 · [v] JSON 파싱 7종 ok · [v] `CLAUDE_PLUGIN_ROOT` 치환 경로로 7종 MCP 서버 initialize 응답 · [v] `npm test` 48 pass
+    - 미실측: Claude Code 에서 플러그인 재설치 후 `/mcp` 연결 확인은 사용자 환경 몫(설치 캐시가 필요해 이 세션에서 하지 않음)
 
 ### Issue12: 라이선스 프로파일 C — README 의 MIT 주장에 맞는 LICENSE 파일 추가 (등록: 2026-09-27, 완료: 2026-09-27)
 * Hash: ce897a4
