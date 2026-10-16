@@ -73,8 +73,8 @@ fSnippet REST API를 통해 텍스트 스니펫을 검색, 확장, 관리합니�
 | 트리거    | `/api/v2/triggers`                           | GET    | 트리거 키 정보             |
 | CLI       | `/api/v2/cli/status`                         | GET    | 엔진 실행/일시정지 상태    |
 | CLI       | `/api/v2/cli/version`                        | GET    | CLI 헬퍼 버전              |
-| CLI       | `/api/v2/cli/pause`                          | POST   | 스니펫 확장 일시정지       |
-| CLI       | `/api/v2/cli/resume`                         | POST   | 스니펫 확장 재개           |
+| CLI       | `/api/v2/cli/pause`                          | POST   | REST API 일시정지(확장은 동작) |
+| CLI       | `/api/v2/cli/resume`                         | POST   | REST API 재개              |
 | CLI       | `/api/v2/reload`                             | POST   | 전체 스니펫 리소스 리로드  |
 
 ---

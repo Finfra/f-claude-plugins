@@ -18,7 +18,7 @@
   "mcpServers": {
     "fgooglesheet": {
       "command": "node",
-      "args": ["/Users/nowage/_git/__all/f-claude-plugins/fGoogleSheet/mcp-server.js"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server.js"]
     }
   }
 }

@@ -73,8 +73,8 @@ Search, expand, and manage text snippets via the fSnippet REST API.
 | Triggers  | `/api/v2/triggers`                           | GET    | Get trigger key information    |
 | CLI       | `/api/v2/cli/status`                         | GET    | Engine running/paused state    |
 | CLI       | `/api/v2/cli/version`                        | GET    | CLI helper version             |
-| CLI       | `/api/v2/cli/pause`                          | POST   | Suspend snippet expansion      |
-| CLI       | `/api/v2/cli/resume`                         | POST   | Restore snippet expansion      |
+| CLI       | `/api/v2/cli/pause`                          | POST   | Pause REST API (expansion runs)|
+| CLI       | `/api/v2/cli/resume`                         | POST   | Resume REST API                |
 | CLI       | `/api/v2/reload`                             | POST   | Reload all snippet resources   |
 
 ---

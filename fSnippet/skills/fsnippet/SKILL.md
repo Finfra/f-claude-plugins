@@ -8,7 +8,7 @@ date: 2026-06-20
 
 Search, expand, create, delete, and manage text snippets via the fSnippet REST API.
 Supports snippet search/expansion, snippet & folder CRUD, clipboard history, folder browsing,
-usage statistics, and CLI helper control (pause/resume/reload).
+usage statistics, and CLI helper control (REST API pause/resume, reload).
 
 # Input
 
@@ -230,14 +230,15 @@ curl -s http://localhost:3015/api/v2/triggers
 Returns default and active trigger key information.
 
 ## CLI Control
-Control the fSnippetCli helper engine. Useful for temporarily suspending snippet expansion
-or reloading resources after editing snippet files.
+Control the fSnippetCli helper engine. `pause` suspends the **REST API only** (requests other than
+`/api/v2/cli/*` return `503`); snippet expansion itself keeps working. Use `reload` to refresh
+resources after editing snippet files.
 
 ```bash
 curl -s http://localhost:3015/api/v2/cli/status        # GET  — engine running state
 curl -s http://localhost:3015/api/v2/cli/version       # GET  — CLI helper version
-curl -s -X POST http://localhost:3015/api/v2/cli/pause   # POST — suspend snippet expansion
-curl -s -X POST http://localhost:3015/api/v2/cli/resume  # POST — restore snippet expansion
+curl -s -X POST http://localhost:3015/api/v2/cli/pause   # POST — pause REST API (expansion keeps working)
+curl -s -X POST http://localhost:3015/api/v2/cli/resume  # POST — resume REST API
 curl -s -X POST http://localhost:3015/api/v2/reload      # POST — reload all snippet resources
 ```
 
@@ -245,8 +246,8 @@ curl -s -X POST http://localhost:3015/api/v2/reload      # POST — reload all s
 | --------------- | ------ | ------------------------------------------------ |
 | `/cli/status`   | GET    | Engine running/paused state                      |
 | `/cli/version`  | GET    | CLI helper version string                        |
-| `/cli/pause`    | POST   | Suspend snippet expansion (typing still logged)  |
-| `/cli/resume`   | POST   | Restore snippet expansion                         |
+| `/cli/pause`    | POST   | Pause REST API only (expansion keeps working)    |
+| `/cli/resume`   | POST   | Resume REST API                                  |
 | `/reload`       | POST   | Reload all snippet/rule resources from disk      |
 
 # Options
