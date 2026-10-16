@@ -28,23 +28,6 @@
 
 ## 📙 일반
 
-### Issue16: [fSnippet] 플러그인 문서의 전제 조건 절이 옛 구조(fSnippet.app 내장 REST)를 설명 — fSnippetCli 기준으로 갱신 (등록: 2026-10-16, 출처: prj25 검토)
-* 목적: 서버 기동 안내가 실제와 달라 처음 설치하는 사용자가 REST 서버를 못 띄운다 — fSnippetCli(brew) 기준으로 맞춘다
-* 상세:
-    - `fSnippet/README.md`·`README_kr.md` L39 «Launch fSnippet.app», L116-121 «Settings > Advanced > Enable REST API» — REST 서버(:3015)는 paidApp 이 아니라 cliApp **fSnippetCli** 가 띄운다
-    - 루트 `CLAUDE.md` L55·`README.md` L15 의 필요 앱 = `fSnippet.app` — 같은 이유로 낡음
-    - `fSnippet/skills/fsnippet/SKILL.md` L31·L44 `brew services start finfra/tap/fsnippet-cli` — 정본 표기는 `brew services start fsnippet-cli`(prj25 README)
-    - `fSnippet/README*.md` L14-19 플러그인 구조 트리에 실제 파일 `mcp-server.js` 가 없다
-    - MCP 확인 절차 부재 — 플러그인 설치 뒤 `/mcp` 에서 `fsnippet` 연결을 확인하는 안내가 없다. L129 외부 링크(`finfra/fSnippet_public/tree/main/mcp`)만 있음
-    - 버전 표기 3곳 불일치: `fSnippet/plugin.json` 1.1.0 · `.claude-plugin/marketplace.json` 1.1.0 · `fSnippet/mcp-server.js` `serverInfo.version` 1.0.0 (플러그인 버전이 앱 1.2.0 과 같을 필요는 없으나 repo 안 세 값은 하나로)
-* 구현 명세:
-    - 전제 조건: `brew install finfra/tap/fsnippet-cli` → `brew services start fsnippet-cli` → `curl -s http://localhost:3015/api/v2/status` 확인 3단계로 교체 (README·README_kr 짝으로)
-    - 루트 `CLAUDE.md`·`README.md` 필요 앱 행을 fSnippetCli 로
-    - 구조 트리에 `mcp-server.js` 추가 · MCP 확인 절차 1단락
-    - 버전 3곳을 하나로 맞춘다 — marketplace 기준 bump 규칙을 따른다
-    - 검증: `grep -rn 'fSnippet.app' fSnippet/ CLAUDE.md README.md` · `grep -rn 'Enable REST API' fSnippet/` 0건 · README/README_kr 줄 대응 확인
-    - ⚠️ `Issue.md` 작업트리에 a5af46e(2026-09-06) 스냅샷 기반 타 세션 미커밋 재포맷(+40/-95)이 있다 — 커밋은 내 블록만 싣는다(`git add -p` 또는 HEAD blob 에 블록만 적용). `issue-tx.py` 는 이 repo 의 `###` 헤더를 인식하지 못한다(Issue12 도구 한계)
-
 ### Issue13: fpm-core 사본 Apache-2.0 전파 확인 + README 라이선스 절 예외 줄 교체 (prj1#Issue556 이관) (등록: 2026-09-28)
 * 목적: prj1#Issue550 이 fpm-core 원천 라이선스를 Apache-2.0 으로 고쳤다(prj1 4916a28). 이 repo 의 `fpm-core/` 는 fpm 번들 미러라 다음 fpm 출고(`deploy --with-marketplace`) 때 원천에서 전파된다. 전파 뒤 README 라이선스 절 예외 줄을 바꾸면 이 repo 전체가 OSI 오픈(MIT + Apache-2.0)이 된다(2026-09-28 사용자 지시로 prj1#Issue556 에서 이관)
 * trigger: prj1 fpm 다음 출고 — R1 재통과 → main 병합 → `deploy <level> --with-marketplace` (출고 보류 중: 사용자 «테스트가 더 필요함», 2026-09-28)
@@ -67,6 +50,32 @@
 ---
 
 ## ✅ 완료
+
+### Issue16: [fSnippet] 플러그인 문서의 전제 조건 절이 옛 구조(fSnippet.app 내장 REST)를 설명 — fSnippetCli 기준으로 갱신 (등록: 2026-10-16, 완료: 2026-10-16, 출처: prj25 검토)
+* Hash: 138d630
+* 목적: 서버 기동 안내가 실제와 달라 처음 설치하는 사용자가 REST 서버를 못 띄운다 — fSnippetCli(brew) 기준으로 맞춘다
+* 상세:
+    - `fSnippet/README.md`·`README_kr.md` L39 «Launch fSnippet.app», L116-121 «Settings > Advanced > Enable REST API» — REST 서버(:3015)는 paidApp 이 아니라 cliApp **fSnippetCli** 가 띄운다
+    - 루트 `CLAUDE.md` L55·`README.md` L15 의 필요 앱 = `fSnippet.app` — 같은 이유로 낡음
+    - `fSnippet/skills/fsnippet/SKILL.md` L31·L44 `brew services start finfra/tap/fsnippet-cli` — 정본 표기는 `brew services start fsnippet-cli`(prj25 README)
+    - `fSnippet/README*.md` L14-19 플러그인 구조 트리에 실제 파일 `mcp-server.js` 가 없다
+    - MCP 확인 절차 부재 — 플러그인 설치 뒤 `/mcp` 에서 `fsnippet` 연결을 확인하는 안내가 없다. L129 외부 링크(`finfra/fSnippet_public/tree/main/mcp`)만 있음
+    - 버전 표기 3곳 불일치: `fSnippet/plugin.json` 1.1.0 · `.claude-plugin/marketplace.json` 1.1.0 · `fSnippet/mcp-server.js` `serverInfo.version` 1.0.0 (플러그인 버전이 앱 1.2.0 과 같을 필요는 없으나 repo 안 세 값은 하나로)
+* 구현 명세:
+    - 전제 조건: `brew install finfra/tap/fsnippet-cli` → `brew services start fsnippet-cli` → `curl -s http://localhost:3015/api/v2/status` 확인 3단계로 교체 (README·README_kr 짝으로)
+    - 루트 `CLAUDE.md`·`README.md` 필요 앱 행을 fSnippetCli 로
+    - 구조 트리에 `mcp-server.js` 추가 · MCP 확인 절차 1단락
+    - 버전 3곳을 하나로 맞춘다 — marketplace 기준 bump 규칙을 따른다
+    - 검증: `grep -rn 'fSnippet.app' fSnippet/ CLAUDE.md README.md` · `grep -rn 'Enable REST API' fSnippet/` 0건 · README/README_kr 줄 대응 확인
+* 결과:
+    - `fSnippet/README.md`·`README_kr.md`: 전제 조건을 `brew install finfra/tap/fsnippet-cli` → `brew services start fsnippet-cli` → `curl -s http://localhost:3015/api/v2/status` 3단계로 교체 · `/mcp` 에서 `fsnippet` connected 확인 절 신설 · 구조 트리에 `mcp-server.js` 추가 · Features 의 fSnippet.app 안내 문구 정정 (en/kr 줄 수 146/146 대응)
+    - `SKILL.md`: `brew services start finfra/tap/fsnippet-cli` → `brew services start fsnippet-cli`(정본 표기)
+    - 루트 `README.md`·`CLAUDE.md` 필요 앱 행 `fSnippet.app` → `fSnippetCli`
+    - 버전 3곳 1.1.0 일치 — `mcp-server.js` `serverInfo.version` 1.0.0 → 1.1.0 (문서 변경이라 plugin.json·marketplace 는 bump 하지 않음)
+    - TDD: red = `tdd/cases/marketplace-manifest-consistency.test.js` 신규 케이스 `1.0.0 !== 1.1.0` 실패 → green = `npm test` 55 pass / 0 fail. `tdd/playlist.md` 1번 행 근거 보강
+    - 검증: [v] `grep -rn 'fSnippet.app' fSnippet/ CLAUDE.md README.md` 0건 · [v] `grep -rn 'Enable REST API' fSnippet/` 0건 · [v] README/README_kr 헤딩 수·줄 수 대응
+    - 미실측: 신규 설치 후 `/mcp` 연결 화면은 사용자 환경 몫
+
 
 ### Issue15: [fSnippet] `mcp-server.js` 의 `expand_snippet`·`create_snippet` 요청 본문이 REST v2 명세와 불일치 — 도구가 실제로 동작하지 않음 (등록: 2026-10-16, 완료: 2026-10-16, 출처: prj25 검토)
 * Hash: fef5d6e
