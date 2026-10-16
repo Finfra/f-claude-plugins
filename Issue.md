@@ -72,7 +72,7 @@
 ## ✅ 완료
 
 ### Issue17: 📙 Python 3.14 기준 전환 — 인터프리터·venv·하드코딩 버전 정리 (등록: 2026-10-16, 완료: 2026-10-17, 출처: prj55#Issue23 · 총괄: prj5#Issue131)
-* commit: 없음 — 코드 변경 없는 근거 종결(이 이슈 이동 커밋이 유일한 변경)
+* commit: 88430a7 (코드 변경 없는 근거 종결 — 이슈 이동 커밋만)
 * 목적: 3-OS(macOS·Windows·Linux) 기준 Python 이 **3.14** 로 확정됨(2026-10-16 사용자 결정 — Ubuntu 26.04 OS `python3` = 3.14, prj1 배포 하한 3.14+). 이 repo 의 Python 실행 경로·venv·버전 표기를 3.14 에 맞춘다
 * depends: prj1#Issue641
 * 담당: prj5 팀장 총괄(prj5#Issue131) — 핀봇 배분 없음, 이 repo 세션이 직접 처리
