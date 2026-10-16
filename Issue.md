@@ -45,21 +45,6 @@
     - 검증: `grep -rn 'fSnippet.app' fSnippet/ CLAUDE.md README.md` · `grep -rn 'Enable REST API' fSnippet/` 0건 · README/README_kr 줄 대응 확인
     - ⚠️ `Issue.md` 작업트리에 a5af46e(2026-09-06) 스냅샷 기반 타 세션 미커밋 재포맷(+40/-95)이 있다 — 커밋은 내 블록만 싣는다(`git add -p` 또는 HEAD blob 에 블록만 적용). `issue-tx.py` 는 이 repo 의 `###` 헤더를 인식하지 못한다(Issue12 도구 한계)
 
-### Issue15: [fSnippet] `mcp-server.js` 의 `expand_snippet`·`create_snippet` 요청 본문이 REST v2 명세와 불일치 — 도구가 실제로 동작하지 않음 (등록: 2026-10-16, 출처: prj25 검토)
-* 목적: MCP 도구 두 개가 API 가 받지 않는 필드를 보내 확장·생성이 실패한다(코드 대조 판정, 실호출 미재현) — 명세에 맞춰 고치고 실호출로 확인한다
-* 상세:
-    - `fSnippet/mcp-server.js` L34 `expand_snippet` → 본문 `{ key, context }`. 명세 `POST /api/v2/snippets/expand` 는 `{ abbreviation, placeholder_values }` (prj25 `api/openapi_v2.yaml` L1396-1406 예시)
-    - `fSnippet/mcp-server.js` L36 `create_snippet` → 본문 `{ key, value, tags }`. 명세 `POST /api/v2/snippets` 는 `{ folder, keyword, name, content }`
-    - 다른 도구(search·list·get 등)의 경로·쿼리도 같은 대조가 필요하다 — prj25 `api/openapi_v2.yaml` 이 SSOT (`/api/v1/*` 는 410 Gone)
-    - prj25 에는 별도 npm 패키지 `fsnippet-mcp`(prj25 `mcp/`)가 있다 — 번들 서버를 유지할지, 그 패키지로 대체할지 판단 대상
-* 구현 명세:
-    - red 먼저: fSnippetCli(:3015) 기동 상태에서 MCP 서버를 stdio 로 띄워 `tools/call expand_snippet`·`create_snippet` 을 호출 → 현재 실패(400 또는 무효 결과) 확인
-    - 두 도구의 `inputSchema`·요청 본문을 명세 필드로 교체. 나머지 도구도 경로·필드 대조
-    - green: 같은 호출이 성공(expand 결과 문자열 · create 뒤 `GET /api/v2/snippets` 에 생성분) · 테스트용으로 만든 스니펫은 삭제
-    - `tdd/playlist.md` 에 회귀 행 1개(이 두 도구의 명세 일치) 추가
-    - 금지: 사용자 실데이터 폴더에 테스트 스니펫을 남기지 않는다 · `git push`
-    - ⚠️ `Issue.md` 작업트리에 a5af46e(2026-09-06) 스냅샷 기반 타 세션 미커밋 재포맷(+40/-95)이 있다 — 커밋은 내 블록만 싣는다(`git add -p` 또는 HEAD blob 에 블록만 적용). `issue-tx.py` 는 이 repo 의 `###` 헤더를 인식하지 못한다(Issue12 도구 한계)
-
 ### Issue13: fpm-core 사본 Apache-2.0 전파 확인 + README 라이선스 절 예외 줄 교체 (prj1#Issue556 이관) (등록: 2026-09-28)
 * 목적: prj1#Issue550 이 fpm-core 원천 라이선스를 Apache-2.0 으로 고쳤다(prj1 4916a28). 이 repo 의 `fpm-core/` 는 fpm 번들 미러라 다음 fpm 출고(`deploy --with-marketplace`) 때 원천에서 전파된다. 전파 뒤 README 라이선스 절 예외 줄을 바꾸면 이 repo 전체가 OSI 오픈(MIT + Apache-2.0)이 된다(2026-09-28 사용자 지시로 prj1#Issue556 에서 이관)
 * trigger: prj1 fpm 다음 출고 — R1 재통과 → main 병합 → `deploy <level> --with-marketplace` (출고 보류 중: 사용자 «테스트가 더 필요함», 2026-09-28)
@@ -82,6 +67,28 @@
 ---
 
 ## ✅ 완료
+
+### Issue15: [fSnippet] `mcp-server.js` 의 `expand_snippet`·`create_snippet` 요청 본문이 REST v2 명세와 불일치 — 도구가 실제로 동작하지 않음 (등록: 2026-10-16, 완료: 2026-10-16, 출처: prj25 검토)
+* Hash: fef5d6e
+* 목적: MCP 도구 두 개가 API 가 받지 않는 필드를 보내 확장·생성이 실패한다(코드 대조 판정, 실호출 미재현) — 명세에 맞춰 고치고 실호출로 확인한다
+* 상세:
+    - `fSnippet/mcp-server.js` L34 `expand_snippet` → 본문 `{ key, context }`. 명세 `POST /api/v2/snippets/expand` 는 `{ abbreviation, placeholder_values }` (prj25 `api/openapi_v2.yaml` L1396-1406 예시)
+    - `fSnippet/mcp-server.js` L36 `create_snippet` → 본문 `{ key, value, tags }`. 명세 `POST /api/v2/snippets` 는 `{ folder, keyword, name, content }`
+    - 다른 도구(search·list·get 등)의 경로·쿼리도 같은 대조가 필요하다 — prj25 `api/openapi_v2.yaml` 이 SSOT (`/api/v1/*` 는 410 Gone)
+    - prj25 에는 별도 npm 패키지 `fsnippet-mcp`(prj25 `mcp/`)가 있다 — 번들 서버를 유지할지, 그 패키지로 대체할지 판단 대상
+* 구현 명세:
+    - red 먼저: fSnippetCli(:3015) 기동 상태에서 MCP 서버를 stdio 로 띄워 `tools/call expand_snippet`·`create_snippet` 을 호출 → 현재 실패(400 또는 무효 결과) 확인
+    - 두 도구의 `inputSchema`·요청 본문을 명세 필드로 교체. 나머지 도구도 경로·필드 대조
+    - green: 같은 호출이 성공(expand 결과 문자열 · create 뒤 `GET /api/v2/snippets` 에 생성분) · 테스트용으로 만든 스니펫은 삭제
+    - `tdd/playlist.md` 에 회귀 행 1개(이 두 도구의 명세 일치) 추가
+    - 금지: 사용자 실데이터 폴더에 테스트 스니펫을 남기지 않는다 · `git push`
+* 결과:
+    - 원인 2중: ① 요청 본문 필드가 명세와 불일치 ② **`makeRequest` 가 `req.write` 만 해 chunked 로 전송 — fSnippetCli 는 chunked 본문을 `400 Invalid JSON body` 로 거부**(필드를 고쳐도 실패). ②는 이슈 등록 시 몰랐고 실서버 호출(red)에서 발견 — 목 서버는 chunked 도 받아들여 기존 테스트가 못 잡았다
+    - `fSnippet/mcp-server.js`: `expand_snippet` → `{abbreviation, placeholder_values}`(필수 abbreviation) · `create_snippet` → `{folder, keyword, name, content}`(필수 folder·name·content, keyword 는 빈 값 허용=`===name.txt`) · `inputSchema` 교체 · `makeRequest` 가 본문 있을 때 `Content-Length`(바이트) 명시
+    - 나머지 3도구(search·list·status) 경로·쿼리는 명세와 일치 확인(변경 없음). 번들 서버 유지 — `fsnippet-mcp` 대체 여부는 판단 대상으로 남기되 이번엔 유지(대체 시 plugin.json 배선·의존성 변경이 커 별도 이슈 사안)
+    - TDD: red = `tdd/cases/fsnippet-request-body-spec.test.js` 6건 중 5건 실패(구 본문·chunked) + 실서버 구 본문 400 재현 → green = 54 pass(`npm test`). `mcp-rest-paths-real` 의 fSnippet 인자와 `_mcp.js` 목 서버(헤더 기록)도 함께 갱신. `tdd/playlist.md` 8번 행 추가
+    - 실호출 green(jm4 fSnippetCli 1.2.0, stdio 로 번들 서버 기동): `create_snippet` 201 생성 → `search_snippets` 로 확인 → expand 본문 `{abbreviation}` `expanded_text=MCP15-OK` → REST `DELETE` 로 삭제, `snippet_count` 1861 복원·파일 잔존 0
+    - 미결: `expand` 의 abbreviation 은 접두 포함 전체형(`@kw{right_command}`)이어야 매칭 — 도구 설명에는 예시만 적었다. 같은 chunked 패턴이 타 플러그인 `makeRequest` 에도 있을 수 있으나 해당 앱 서버 거동은 미실측(이번 범위 밖)
 
 ### Issue14: [fSnippet] 플러그인 문서의 `cli/pause` 의미 정정 + `plugin.json` `mcpServers` 절대경로 하드코딩 제거 (등록: 2026-10-15, 완료: 2026-10-16, 출처: prj25#Issue264)
 * Hash: 0bb5531
