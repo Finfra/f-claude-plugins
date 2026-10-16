@@ -29,7 +29,7 @@ function startMockApp({ delayMs = 0 } = {}) {
     let body = '';
     req.on('data', c => { body += c; });
     req.on('end', () => {
-      requests.push({ method: req.method, url: req.url, body });
+      requests.push({ method: req.method, url: req.url, body, headers: req.headers });
       setTimeout(() => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));

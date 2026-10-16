@@ -34,8 +34,8 @@ const EXPECTED = {
   ],
   fSnippet: [
     ['search_snippets', { query: 'ab' }, 'GET', '/api/v2/snippets/search?q=ab'],
-    ['expand_snippet', { key: 'k' }, 'POST', '/api/v2/snippets/expand'],
-    ['create_snippet', { key: 'k', value: 'v' }, 'POST', '/api/v2/snippets'],
+    ['expand_snippet', { abbreviation: 'k' }, 'POST', '/api/v2/snippets/expand'],
+    ['create_snippet', { folder: 'f', name: 'n', content: 'v' }, 'POST', '/api/v2/snippets'],
     ['list_snippets', {}, 'GET', '/api/v2/snippets'],
     ['get_status', {}, 'GET', '/api/v2/status']
   ],

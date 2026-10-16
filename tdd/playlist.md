@@ -9,7 +9,7 @@ date: 2026.09.26
 각 플러그인 MCP 서버가 앱의 실제 REST 경로와 CLI 규약대로 호출하고, 마켓플레이스 등록이 정합한지 지킨다
 
 * 러너: 앱 플러그인 `npm test` (= `node --test tdd/cases/*.test.js`, 격리 — 임시 HOME·목 서버·가짜 fCapture 바이너리, 실제 앱·캡처 미접촉) / fpm-core 번들 `python3 fpm-core/services/hub/test_*.py` (24종, ___pm 소유)
-* 목표 7개 전부 ✅ (2026.09.27, prj5#Issue100) — 신규 6개는 `tdd/cases/` 48 케이스
+* 목표 8개 전부 ✅ (7개 2026.09.27 prj5#Issue100, 8번 2026.10.16 Issue15) — `tdd/cases/` 54 케이스
 
 # 재생목록
 
@@ -24,6 +24,7 @@ date: 2026.09.26
 | 5 | `stdin-close-inflight` | stdin이 닫혀도 진행 중인 비동기 도구 호출의 응답은 버려지지 않고 전달된다 | Issue10 실측 발견: rl.on('close', process.exit) 패턴이 in-flight 응답을 버림(fQRGen/mcp-server.js 유래) | `node --test tdd/cases/stdin-close-inflight.test.js` | ✅ |
 | 6 | `fcapture-error-paths` | 잘못된 mode, width 0, 프리셋 파일 부재, 바이너리 미발견, region_user 프리셋이 모두 isError=true와 사람이 읽을 수 있는 메시지로 반환된다 | Issue10 명세 준수·검증 결과(에러 경로 4종, region_user 거부) | `node --test tdd/cases/fcapture-error-paths.test.js` | ✅ |
 | 7 | `fpm-core-hub-regression` | fpm-core hub 서비스 회귀 테스트(i18n 패리티, 토큰 마스킹, allowlist 등)가 전부 exit 0으로 통과한다 | fpm-core/services/hub/test_*.py 24종 (예: test_i18n_parity.py 헤더 '실행: python3 services/hub/test_i18n_parity.py') | `for t in fpm-core/services/hub/test_*.py; do python3 $t; done` — 미러 23/24. `test_issue_map.py` 는 번들 생성기를 `plugins/fpm-core/…`(___pm 레이아웃)로만 찾아 미러에서 [배포본] 1건 FAIL → **원본 ___pm 에서 실행 72/72 pass 로 대체**, 탐색 수정은 prj1 이관(미러 파일은 `.fpm-integrity.json` 해시 대상이라 여기서 고치지 않음) | ✅ 대체 |
+| 8 | `fsnippet-request-body-spec` | fSnippet MCP 의 `expand_snippet`·`create_snippet` 이 REST v2 명세 필드(`{abbreviation, placeholder_values}`·`{folder, keyword, name, content}`)를 Content-Length 로 보낸다(chunked 금지 — 실서버가 400 으로 거부) | Issue15: 구 본문 `{key,context}`·`{key,value,tags}` + chunked 전송으로 실서버 400, 도구 동작 0 (2026-10-16 실측) | `node --test tdd/cases/fsnippet-request-body-spec.test.js` | ✅ |
 
 # 규약
 

@@ -9,7 +9,11 @@ const BASE_URL = `http://localhost:${PORT}`;
 function makeRequest(path, method = 'GET', body = null) {
   return new Promise((resolve, reject) => {
     const url = new URL(path, BASE_URL);
-    const options = { hostname: url.hostname, port: url.port || 80, path: url.pathname + url.search, method, headers: { 'Content-Type': 'application/json' } };
+    // fSnippetCli 는 chunked 본문을 파싱하지 못해 400 을 돌려준다 — 본문이 있으면 Content-Length 를 명시한다
+    const payload = body ? JSON.stringify(body) : null;
+    const headers = { 'Content-Type': 'application/json' };
+    if (payload) headers['Content-Length'] = Buffer.byteLength(payload);
+    const options = { hostname: url.hostname, port: url.port || 80, path: url.pathname + url.search, method, headers };
     const req = http.request(options, (res) => {
       let data = '';
       res.on('data', chunk => { data += chunk; });
@@ -19,7 +23,7 @@ function makeRequest(path, method = 'GET', body = null) {
       });
     });
     req.on('error', reject);
-    if (body) req.write(JSON.stringify(body));
+    if (payload) req.write(payload);
     req.end();
   });
 }
@@ -31,9 +35,9 @@ async function handleToolCall(toolName, toolInput) {
       case 'search_snippets':
         return await makeRequest(`/api/v2/snippets/search?q=${encodeURIComponent(inp.query || '')}${inp.limit ? `&limit=${inp.limit}` : ''}`);
       case 'expand_snippet':
-        return await makeRequest('/api/v2/snippets/expand', 'POST', { key: inp.key, context: inp.context });
+        return await makeRequest('/api/v2/snippets/expand', 'POST', { abbreviation: inp.abbreviation, placeholder_values: inp.placeholder_values });
       case 'create_snippet':
-        return await makeRequest('/api/v2/snippets', 'POST', { key: inp.key, value: inp.value, tags: inp.tags });
+        return await makeRequest('/api/v2/snippets', 'POST', { folder: inp.folder, keyword: inp.keyword, name: inp.name, content: inp.content });
       case 'list_snippets':
         return await makeRequest(`/api/v2/snippets${inp.limit ? `?limit=${inp.limit}` : ''}`);
       case 'get_status':
@@ -67,8 +71,8 @@ async function main() {
   const maybeExit = () => { if (closed && inFlight === 0) process.exit(0); };
   const tools = [
     { name: 'search_snippets', description: 'Search snippets by keyword', inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
-    { name: 'expand_snippet', description: 'Expand snippet with context', inputSchema: { type: 'object', properties: { key: { type: 'string' }, context: { type: 'string' } }, required: ['key'] } },
-    { name: 'create_snippet', description: 'Create new snippet', inputSchema: { type: 'object', properties: { key: { type: 'string' }, value: { type: 'string' }, tags: { type: 'array' } }, required: ['key', 'value'] } },
+    { name: 'expand_snippet', description: 'Expand an abbreviation to its full text (e.g. "bb{right_command}")', inputSchema: { type: 'object', properties: { abbreviation: { type: 'string' }, placeholder_values: { type: 'object' } }, required: ['abbreviation'] } },
+    { name: 'create_snippet', description: 'Create a snippet file "keyword===name.txt" in an existing folder (keyword may be empty)', inputSchema: { type: 'object', properties: { folder: { type: 'string' }, keyword: { type: 'string' }, name: { type: 'string' }, content: { type: 'string' } }, required: ['folder', 'name', 'content'] } },
     { name: 'list_snippets', description: 'List all snippets', inputSchema: { type: 'object', properties: {} } },
     { name: 'get_status', description: 'Get snippet manager status', inputSchema: { type: 'object', properties: {} } }
   ];
