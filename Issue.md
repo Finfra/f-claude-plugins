@@ -1,6 +1,6 @@
 # Issue Management
 
-* Issue HWM: 14
+* Issue HWM: 16
 * Checkpoints:
     - 8cb111b (2026-07-26) MCP 브릿지 구현 + Desktop config 정정
     - 02d1026 (2026-03-19)
@@ -28,12 +28,47 @@
 
 ## 📙 일반
 
+### Issue16: [fSnippet] 플러그인 문서의 전제 조건 절이 옛 구조(fSnippet.app 내장 REST)를 설명 — fSnippetCli 기준으로 갱신 (등록: 2026-10-16, 출처: prj25 검토)
+* 목적: 서버 기동 안내가 실제와 달라 처음 설치하는 사용자가 REST 서버를 못 띄운다 — fSnippetCli(brew) 기준으로 맞춘다
+* 상세:
+    - `fSnippet/README.md`·`README_kr.md` L39 «Launch fSnippet.app», L116-121 «Settings > Advanced > Enable REST API» — REST 서버(:3015)는 paidApp 이 아니라 cliApp **fSnippetCli** 가 띄운다
+    - 루트 `CLAUDE.md` L55·`README.md` L15 의 필요 앱 = `fSnippet.app` — 같은 이유로 낡음
+    - `fSnippet/skills/fsnippet/SKILL.md` L31·L44 `brew services start finfra/tap/fsnippet-cli` — 정본 표기는 `brew services start fsnippet-cli`(prj25 README)
+    - `fSnippet/README*.md` L14-19 플러그인 구조 트리에 실제 파일 `mcp-server.js` 가 없다
+    - MCP 확인 절차 부재 — 플러그인 설치 뒤 `/mcp` 에서 `fsnippet` 연결을 확인하는 안내가 없다. L129 외부 링크(`finfra/fSnippet_public/tree/main/mcp`)만 있음
+    - 버전 표기 3곳 불일치: `fSnippet/plugin.json` 1.1.0 · `.claude-plugin/marketplace.json` 1.1.0 · `fSnippet/mcp-server.js` `serverInfo.version` 1.0.0 (플러그인 버전이 앱 1.2.0 과 같을 필요는 없으나 repo 안 세 값은 하나로)
+* 구현 명세:
+    - 전제 조건: `brew install finfra/tap/fsnippet-cli` → `brew services start fsnippet-cli` → `curl -s http://localhost:3015/api/v2/status` 확인 3단계로 교체 (README·README_kr 짝으로)
+    - 루트 `CLAUDE.md`·`README.md` 필요 앱 행을 fSnippetCli 로
+    - 구조 트리에 `mcp-server.js` 추가 · MCP 확인 절차 1단락
+    - 버전 3곳을 하나로 맞춘다 — marketplace 기준 bump 규칙을 따른다
+    - 검증: `grep -rn 'fSnippet.app' fSnippet/ CLAUDE.md README.md` · `grep -rn 'Enable REST API' fSnippet/` 0건 · README/README_kr 줄 대응 확인
+    - ⚠️ `Issue.md` 작업트리에 a5af46e(2026-09-06) 스냅샷 기반 타 세션 미커밋 재포맷(+40/-95)이 있다 — 커밋은 내 블록만 싣는다(`git add -p` 또는 HEAD blob 에 블록만 적용). `issue-tx.py` 는 이 repo 의 `###` 헤더를 인식하지 못한다(Issue12 도구 한계)
+
+### Issue15: [fSnippet] `mcp-server.js` 의 `expand_snippet`·`create_snippet` 요청 본문이 REST v2 명세와 불일치 — 도구가 실제로 동작하지 않음 (등록: 2026-10-16, 출처: prj25 검토)
+* 목적: MCP 도구 두 개가 API 가 받지 않는 필드를 보내 확장·생성이 실패한다(코드 대조 판정, 실호출 미재현) — 명세에 맞춰 고치고 실호출로 확인한다
+* 상세:
+    - `fSnippet/mcp-server.js` L34 `expand_snippet` → 본문 `{ key, context }`. 명세 `POST /api/v2/snippets/expand` 는 `{ abbreviation, placeholder_values }` (prj25 `api/openapi_v2.yaml` L1396-1406 예시)
+    - `fSnippet/mcp-server.js` L36 `create_snippet` → 본문 `{ key, value, tags }`. 명세 `POST /api/v2/snippets` 는 `{ folder, keyword, name, content }`
+    - 다른 도구(search·list·get 등)의 경로·쿼리도 같은 대조가 필요하다 — prj25 `api/openapi_v2.yaml` 이 SSOT (`/api/v1/*` 는 410 Gone)
+    - prj25 에는 별도 npm 패키지 `fsnippet-mcp`(prj25 `mcp/`)가 있다 — 번들 서버를 유지할지, 그 패키지로 대체할지 판단 대상
+* 구현 명세:
+    - red 먼저: fSnippetCli(:3015) 기동 상태에서 MCP 서버를 stdio 로 띄워 `tools/call expand_snippet`·`create_snippet` 을 호출 → 현재 실패(400 또는 무효 결과) 확인
+    - 두 도구의 `inputSchema`·요청 본문을 명세 필드로 교체. 나머지 도구도 경로·필드 대조
+    - green: 같은 호출이 성공(expand 결과 문자열 · create 뒤 `GET /api/v2/snippets` 에 생성분) · 테스트용으로 만든 스니펫은 삭제
+    - `tdd/playlist.md` 에 회귀 행 1개(이 두 도구의 명세 일치) 추가
+    - 금지: 사용자 실데이터 폴더에 테스트 스니펫을 남기지 않는다 · `git push`
+    - ⚠️ `Issue.md` 작업트리에 a5af46e(2026-09-06) 스냅샷 기반 타 세션 미커밋 재포맷(+40/-95)이 있다 — 커밋은 내 블록만 싣는다(`git add -p` 또는 HEAD blob 에 블록만 적용). `issue-tx.py` 는 이 repo 의 `###` 헤더를 인식하지 못한다(Issue12 도구 한계)
+
 ### Issue14: [fSnippet] 플러그인 문서의 `cli/pause` 의미 정정 + `plugin.json` `mcpServers` 절대경로 하드코딩 제거 (등록: 2026-10-15, 출처: prj25#Issue264)
 * 목적: fSnippet 플러그인이 실제 동작과 다른 서술을 싣고, 다른 머신·사용자에서 MCP 서버를 못 띄운다 — 실측 기준으로 고친다
 * 상세:
     - 출처: prj25(fSnippetCli) Issue264 «매뉴얼 밖 낡은 서술 정리» ①·⑤ 중 이 repo 몫 — prj25 쪽 문서(`api/openapi_v2.yaml`·`cli/README*`·`mcp/README*`)는 prj25 에서 정정 완료
-    - ① `fSnippet/skills/fsnippet/SKILL.md`(L11·L239·L248)·`fSnippet/README.md`(L76)·`fSnippet/README_kr.md`(L76) 가 `POST /api/v2/cli/pause` 를 «스니펫 확장 일시정지» 로 쓴다. 실측(2026-10-15 jm4, fSnippetCli 1.2.0): pause 는 **REST API 만** 멈춤 — `/api/v2/cli/*` 외 요청 `503`, 스니펫 확장은 계속 동작(`APIServer.swift` Pause guard)
-    - ⑤ `fSnippet/plugin.json` `mcpServers.fsnippet.args` = `/Users/nowage/_git/__all/f-claude-plugins/fSnippet/mcp-server.js` 절대경로. 같은 패턴이 `fBanner`·`fWarrange` 등 다른 `plugin.json` 에도 있음(일괄 점검 대상)
+    - ① `fSnippet/skills/fsnippet/SKILL.md`(L11·L233-234·L239·L240·L248·L249)·`fSnippet/README.md`(L76·L77)·`fSnippet/README_kr.md`(L76·L77) 가 `POST /api/v2/cli/pause` 를 «스니펫 확장 일시정지» 로 쓴다. 실측(2026-10-15 jm4, fSnippetCli 1.2.0): pause 는 **REST API 만** 멈춤 — `/api/v2/cli/*` 외 요청 `503`, 스니펫 확장은 계속 동작(`APIServer.swift` Pause guard)
+    - ⑤ `fSnippet/plugin.json` `mcpServers.fsnippet.args` = `/Users/nowage/_git/__all/f-claude-plugins/fSnippet/mcp-server.js` 절대경로. 같은 패턴이 `fBanner`·`fBoard`·`fCapture`·`fGoogleSheet`·`fQRGen`·`fWarrange` `plugin.json` 에도 있음 — 7개 전부(2026-10-16 prj25 검토 실측)
+    - 보강(2026-10-16, prj25 검토): 등록 당시 목록에서 resume 행(SKILL.md L240·L249, README* L77)과 SKILL.md L233-234 «temporarily suspending snippet expansion» 이 빠져 있었다 — 같은 오류라 함께 고친다
+    - 근거: 같은 repo `fpm-core/hooks/hooks.json` 이 이미 `${CLAUDE_PLUGIN_ROOT}` 를 쓴다(hooks 에서의 확장 선례). `mcpServers` 에서도 확장되는지는 재설치로 실측한다
+    - ⚠️ prj25 원본 `agents/claude/README*.md` 의 수동 설치 예시(`cp plugin.json`)도 절대경로를 퍼뜨린다 — 그 정정은 prj25 몫(여기서 고치지 않음)
 * 구현 명세:
     - 문서 3곳: pause = «REST API 일시정지(확장은 계속 동작)», resume = «REST API 재개» 로 교체
     - `plugin.json`: `"args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server.js"]` 로 교체(검증 필요 — 이 repo 플러그인 로더가 해당 변수를 확장하는지 확인 후). 다른 플러그인도 같은 방식으로 일괄
