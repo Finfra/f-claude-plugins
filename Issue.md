@@ -28,6 +28,26 @@
 
 ## 📙 일반
 
+### Issue18: [fSnippet] 플러그인 버전 1.1.0 → 1.1.1 — Issue15 동작 수정이 설치 사용자에게 업데이트로 전달되도록 (등록: 2026-10-16, 출처: prj25 검토)
+* 목적: Issue15(`expand_snippet`·`create_snippet` 요청 본문 수정, `fef5d6e`)는 MCP 도구 동작이 바뀐 수정인데 버전이 1.1.0 그대로라, 이미 설치한 사용자가 마켓플레이스 업데이트로 받지 못할 수 있다
+* 상세: 버전 표기 3곳 — `fSnippet/plugin.json` `version` · `.claude-plugin/marketplace.json` `fsnippet` 항목 `version` · `fSnippet/mcp-server.js` `serverInfo.version`
+* 구현 명세:
+    - 세 곳을 같은 값(1.1.1, patch — 기능 추가 없음)으로 올린다
+    - 검증: `grep -rn '"version"\|serverInfo' fSnippet .claude-plugin/marketplace.json` 에서 fsnippet 세 값이 같음 · `node fSnippet/mcp-server.js` initialize 응답 version 확인
+    - push 는 사용자 확인 뒤(현재 `release/0.1.0` 이 origin 보다 10커밋 앞섬)
+
+### Issue19: [Repo] `Issue.md` 섹션 깊이가 양식과 달라 `fpm-do` 가 완료를 영영 못 봄 — 섹션 `##`→`#`, 이슈 `###`→`##` (등록: 2026-10-16, 출처: prj25 실측 — Issue14·15·16 위임 3회 모두 45분 시간 초과)
+* 목적: 이 repo 로 `fpm-do` 위임을 했을 때 완료 커밋이 들어오면 바로 회수되게 한다
+* 상세:
+    - 실측(2026-10-16): prj25 가 Issue14·15·16 을 `fpm-do 20` 으로 맡겼고 세 번 모두 «시간 초과(45분)·완료 미기록·rc=1» 로 끝났다. 실제 완료 커밋(`03dad03`·`9a6fa67`·`33ac195`)은 그 안에 이미 있었다
+    - 원인: 완료 판정(`~/.bin/fpm-do` `completed_block`, `~/.claude/hooks/lib/issue-completion.py` `is_done_section`)은 완료 섹션을 **최상위 `# …완료`** 로만 본다. 이 repo 는 `# Issue Management` 아래 `## ✅ 완료` 로 한 단계 깊어 섹션 자체를 못 찾는다(`###` 이슈 헤더는 판정기가 받는다 — 원인 아님)
+    - 양식 SSOT `~/_git/___pm/data/template/Issue.md`·`~/.claude/rules/issue-g.md` «기본 섹션» 은 섹션 `# `, 이슈 `## ` 이다. 같은 이탈: prj11·prj42a (2026-10-16 전수 조사)
+    - 판정기 쪽 fail-loud(섹션 부재 = 판정 불가로 즉시 보고)는 prj3 에 따로 등록
+* 구현 명세:
+    - `Issue.md` 의 섹션 헤더(🤔·🌱·🚧·📕·📙·📗·✅·⏸️·🚫·📜) `## ` → `# `, 이슈 헤더 `### Issue` → `## Issue`(서브 이슈 `#### Issue<N>_<M>` 은 `### `). `# Issue Management` 는 그대로
+    - 다른 세션 미커밋분이 있으면 먼저 정리된 뒤 진행(일괄 치환이라 블록 단위 커밋과 충돌)
+    - 검증: `bash -c 'source <(sed -n "/^completed_block()/,/^}/p" ~/.bin/fpm-do); completed_block . 16'` 가 Issue16 블록을 출력 · `python3 -c` 로 `issue-completion.py` `issue_completed_in(".", "Issue16")` 참
+
 ### Issue13: fpm-core 사본 Apache-2.0 전파 확인 + README 라이선스 절 예외 줄 교체 (prj1#Issue556 이관) (등록: 2026-09-28)
 * 목적: prj1#Issue550 이 fpm-core 원천 라이선스를 Apache-2.0 으로 고쳤다(prj1 4916a28). 이 repo 의 `fpm-core/` 는 fpm 번들 미러라 다음 fpm 출고(`deploy --with-marketplace`) 때 원천에서 전파된다. 전파 뒤 README 라이선스 절 예외 줄을 바꾸면 이 repo 전체가 OSI 오픈(MIT + Apache-2.0)이 된다(2026-09-28 사용자 지시로 prj1#Issue556 에서 이관)
 * trigger: prj1 fpm 다음 출고 — R1 재통과 → main 병합 → `deploy <level> --with-marketplace` (출고 보류 중: 사용자 «테스트가 더 필요함», 2026-09-28)
