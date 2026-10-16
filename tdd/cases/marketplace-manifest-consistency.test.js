@@ -30,3 +30,16 @@ for (const entry of market.plugins) {
     assert.equal(plugin.version, entry.version, `version 불일치 (${path.relative(ROOT, pj)})`);
   });
 }
+
+// Issue16 — fSnippet 번들 MCP 서버의 serverInfo.version 도 plugin.json 과 같은 값이다 (repo 안 버전 3곳 일치)
+test('fsnippet: mcp-server.js serverInfo.version 이 plugin.json version 과 같다', async () => {
+  const { startServer } = require('./_mcp');
+  const plugin = JSON.parse(fs.readFileSync(path.join(ROOT, 'fSnippet', 'plugin.json'), 'utf8'));
+  const srv = startServer('fSnippet', {});
+  try {
+    const res = await srv.waitFor(srv.send('initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'tdd', version: '0' } }));
+    assert.equal(res.result.serverInfo.version, plugin.version);
+  } finally {
+    await srv.stop();
+  }
+});

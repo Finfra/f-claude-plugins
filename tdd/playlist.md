@@ -17,7 +17,7 @@ date: 2026.09.26
 
 | # | id | 목표 | 근거 | 실행 | 상태 |
 | :- | :- | :- | :- | :- | :- |
-| 1 | `marketplace-manifest-consistency` | .claude-plugin/marketplace.json의 각 플러그인 path가 실제 폴더와 plugin.json을 가리키고, version이 plugin.json과 같다 | .claude-plugin/marketplace.json, */plugin.json (예: fBoard 1.1.0, fGoogleSheet 1.2.0) | `node --test tdd/cases/marketplace-manifest-consistency.test.js` | ✅ |
+| 1 | `marketplace-manifest-consistency` | .claude-plugin/marketplace.json의 각 플러그인 path가 실제 폴더와 plugin.json을 가리키고, version이 plugin.json과 같다. fSnippet 은 번들 MCP `serverInfo.version` 도 plugin.json 과 같다 | .claude-plugin/marketplace.json, */plugin.json (예: fBoard 1.1.0, fGoogleSheet 1.2.0), Issue16(fSnippet 3곳 1.1.0) | `node --test tdd/cases/marketplace-manifest-consistency.test.js` | ✅ |
 | 2 | `mcp-rest-paths-real` | 각 MCP 서버가 호출하는 REST 경로가 앱 실제 API와 일치한다(fSnippet·fWarrange는 /api/v2/*, fQRGen은 /api/generate) | commit a5af46e(5개 서버가 존재하지 않는 엔드포인트를 호출해 실동작 0이었음) | `node --test tdd/cases/mcp-rest-paths-real.test.js` (목 REST 서버 · `F*_PORT` override) | ✅ |
 | 3 | `mcp-missing-input-guard` | toolInput 없이 도구를 호출해도 TypeError로 죽지 않고 isError 응답을 돌려준다 | commit a5af46e '공통: toolInput 미전달 시 TypeError 방지 가드' | `node --test tdd/cases/mcp-missing-input-guard.test.js` | ✅ |
 | 4 | `fcapture-serialized-calls` | fCapture MCP는 동시에 들어온 캡처 호출을 직렬화해서, 병렬 요청도 전부 성공한다(권한 오류로 위장된 실패가 나지 않는다) | Issue10 실측 발견: 3-way 병렬은 전건 실패, 순차는 성공. promise 체인 뮤텍스 도입 | `node --test tdd/cases/fcapture-serialized-calls.test.js` (가짜 바이너리 `FCAPTURE_BIN`) | ✅ |

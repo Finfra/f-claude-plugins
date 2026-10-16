@@ -12,7 +12,8 @@ fSnippet REST API를 통해 텍스트 스니펫을 검색, 확장, 관리하는 
 # 플러그인 구조
 
 ```
-plugin.json              # 플러그인 매니페스트
+plugin.json              # 플러그인 매니페스트 (번들 MCP 서버 등록)
+mcp-server.js            # 번들 MCP 서버 (stdio) — REST API 래퍼
 skills/
 └── fsnippet/
     └── SKILL.md         # 스니펫 관리 스킬
@@ -36,7 +37,7 @@ fSnippet REST API를 통해 텍스트 스니펫을 검색, 확장, 관리합니�
 ```
 
 **주요 기능:**
-* 서버 미실행 시 fSnippet.app 실행 안내
+* 서버 미실행 시 fSnippetCli 서비스 기동 안내
 * 축약어, 폴더, 태그 기반 스니펫 검색
 * 축약어를 전체 텍스트로 확장 (플레이스홀더 지원)
 * 클립보드 히스토리 조회 및 검색
@@ -109,16 +110,25 @@ ln -sf fSnippet/skills/fsnippet .claude/skills/fsnippet
 
 # 전제 조건
 
-fSnippet REST API 서버가 실행 중이어야 합니다:
+fSnippet REST API 서버(`:3015`)는 GUI 앱이 아니라 Homebrew 로 설치하는 **fSnippetCli** 헬퍼가 띄웁니다. 3단계로 기동합니다:
 
-| 요구 사항         | 상세                                                   |
-| ----------------- | ------------------------------------------------------ |
-| macOS 네이티브 앱 | fSnippet.app 실행                                      |
-| API 활성화        | 설정 > 고급 > REST API 활성화                          |
-| 기본 포트         | `3015` (설정에서 변경 가능)                            |
-| 보안              | 기본적으로 localhost만 허용 (`127.0.0.1/32`)           |
+```bash
+brew install finfra/tap/fsnippet-cli
+brew services start fsnippet-cli
+curl -s http://localhost:3015/api/v2/status      # 서버 응답 확인
+```
 
-> 서버가 꺼져 있으면 스킬이 사용자에게 fSnippet.app 실행 및 REST API 활성화를 안내합니다.
+| 요구 사항 | 상세                                                   |
+| --------- | ------------------------------------------------------ |
+| 엔진      | `fSnippetCli` (Homebrew formula `fsnippet-cli`)        |
+| 기본 포트 | `3015` (REST API 기본 활성)                            |
+| 보안      | 기본적으로 localhost만 허용 (`127.0.0.1/32`)           |
+
+> 서버가 꺼져 있으면 스킬이 사용자에게 `brew services start fsnippet-cli` 실행을 안내합니다.
+
+## MCP 서버 확인
+
+플러그인 설치 뒤 Claude Code 에서 `/mcp` 를 실행해 `fsnippet` 이 **connected** 로 보이는지 확인합니다. 아니면 위 REST 서버를 먼저 기동한 뒤 `/mcp` 패널에서 재연결합니다.
 
 ---
 

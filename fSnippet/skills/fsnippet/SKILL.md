@@ -28,7 +28,7 @@ The fSnippet REST API server (`http://localhost:3015`) is provided by the **fSni
 | Requirement   | Details                                                 |
 | ------------- | ------------------------------------------------------- |
 | Engine        | `fSnippetCli` (`brew install finfra/tap/fsnippet-cli`)  |
-| Start service | `brew services start finfra/tap/fsnippet-cli`           |
+| Start service | `brew services start fsnippet-cli`           |
 | Default Port  | `3015` (REST API enabled by default)                    |
 | Security      | Localhost only by default (`127.0.0.1/32`)              |
 
@@ -41,7 +41,7 @@ The fSnippet REST API server (`http://localhost:3015`) is provided by the **fSni
    If the server is not responding, inform the user:
    > "fSnippet REST API server (fSnippetCli) is not running. Start it via Homebrew:"
    > ```bash
-   > brew services start finfra/tap/fsnippet-cli
+   > brew services start fsnippet-cli
    > ```
    > "Let me know when ready."
 

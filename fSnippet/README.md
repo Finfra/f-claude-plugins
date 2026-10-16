@@ -12,7 +12,8 @@ After installation, interact with your snippet library instantly using slash com
 # Plugin Structure
 
 ```
-plugin.json              # Plugin manifest
+plugin.json              # Plugin manifest (registers the bundled MCP server)
+mcp-server.js            # Bundled MCP server (stdio) — wraps the REST API
 skills/
 └── fsnippet/
     └── SKILL.md         # Snippet management skill
@@ -36,7 +37,7 @@ Search, expand, and manage text snippets via the fSnippet REST API.
 ```
 
 **Features:**
-* Guides user to launch fSnippet.app if server is not running
+* Guides user to start the fSnippetCli service if the server is not running
 * Search snippets by keyword across abbreviations, folders, tags
 * Expand abbreviations to full text (with placeholder support)
 * Browse clipboard history and search within it
@@ -109,16 +110,25 @@ ln -sf fSnippet/skills/fsnippet .claude/skills/fsnippet
 
 # Prerequisites
 
-The fSnippet REST API server must be running:
+The fSnippet REST API server (`:3015`) is provided by the **fSnippetCli** helper (Homebrew), not by the GUI app. Start it in 3 steps:
 
-| Requirement      | Details                                                |
-| ---------------- | ------------------------------------------------------ |
-| macOS Native App | Launch fSnippet.app                                    |
-| API Activation   | Settings > Advanced > Enable REST API                  |
-| Default Port     | `3015` (configurable in Settings)                      |
-| Security         | Localhost only by default (`127.0.0.1/32`)             |
+```bash
+brew install finfra/tap/fsnippet-cli
+brew services start fsnippet-cli
+curl -s http://localhost:3015/api/v2/status      # verify the server responds
+```
 
-> If the server is not running, the skill will prompt the user to launch fSnippet.app and enable the REST API.
+| Requirement  | Details                                                |
+| ------------ | ------------------------------------------------------ |
+| Engine       | `fSnippetCli` (Homebrew formula `fsnippet-cli`)        |
+| Default Port | `3015` (REST API enabled by default)                   |
+| Security     | Localhost only by default (`127.0.0.1/32`)             |
+
+> If the server is not running, the skill will prompt the user to run `brew services start fsnippet-cli`.
+
+## Verify the MCP Server
+
+After installing the plugin, run `/mcp` in Claude Code and confirm that `fsnippet` is listed as **connected**. If it is not, start the REST server above and reconnect from the `/mcp` panel.
 
 ---
 

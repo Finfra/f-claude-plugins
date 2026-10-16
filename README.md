@@ -12,7 +12,7 @@ date: 2026-03-26
 | ----------------------------- | ------------------------------------------- | ---- | ---------------- |
 | [fBanner](fBanner/)           | 이미지/PDF/SVG를 격자 타일로 분할           | 3011 | fBanner.app      |
 | [fBoard](fBoard/)             | 화이트보드 앱 제어 (윈도우, 배경색, 프리셋) | 3012 | fBoard.app       |
-| [fSnippet](fSnippet/)         | 텍스트 스니펫 검색, 확장, 관리              | 3015 | fSnippet.app     |
+| [fSnippet](fSnippet/)         | 텍스트 스니펫 검색, 확장, 관리              | 3015 | fSnippetCli      |
 | [fQRGen](fQRGen/)             | URL/텍스트에서 QR 코드 생성                 | 3014 | fQRGen.app       |
 | [fWarrange](fWarrange/)       | macOS 윈도우 레이아웃 저장/복원             | 3016 | fWarrange.app    |
 | [fGoogleSheet](fGoogleSheet/) | Google Sheets 데이터 관리                   | 3013 | fGoogleSheet.app |
