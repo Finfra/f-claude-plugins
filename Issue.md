@@ -71,6 +71,29 @@
 
 ## ✅ 완료
 
+### Issue17: 📙 Python 3.14 기준 전환 — 인터프리터·venv·하드코딩 버전 정리 (등록: 2026-10-16, 완료: 2026-10-17, 출처: prj55#Issue23 · 총괄: prj5#Issue131)
+* commit: 없음 — 코드 변경 없는 근거 종결(이 이슈 이동 커밋이 유일한 변경)
+* 목적: 3-OS(macOS·Windows·Linux) 기준 Python 이 **3.14** 로 확정됨(2026-10-16 사용자 결정 — Ubuntu 26.04 OS `python3` = 3.14, prj1 배포 하한 3.14+). 이 repo 의 Python 실행 경로·venv·버전 표기를 3.14 에 맞춘다
+* depends: prj1#Issue641
+* 담당: prj5 팀장 총괄(prj5#Issue131) — 핀봇 배분 없음, 이 repo 세션이 직접 처리
+* 상세:
+    - 검출(2026-10-16 자동 스캔, 참고용 — 문서 속 언급 포함): .py 89개 · shebang `python3`×81 · 하드코딩 minor(3.14 외) 없음 · requires-python 없음 · venv 없음
+    - 기준 설치원: macOS brew `python@3.14`(bare `brew install python` = 3.15 · `/usr/bin/python3` = CLT 3.9 쓰지 않음) · Windows python.org 3.14(`py -3.14`) · Ubuntu 22.04 deadsnakes `python3.14` / 26.04 OS `python3`
+    - 근거: prj2 `3.Resource/_Coding/_python/Python3.14_전환사전조사.md` · prj55 `_doc_work/report/python-version-survey_report.md`
+* 구현 명세:
+    1. 3.14 외 minor 를 고정한 shebang·스크립트·`requires-python`·문서 설치 안내를 3.14 기준으로 정리 (의도적 고정이면 사유를 남기고 유지)
+    2. venv 가 있으면 `python3.14 -m venv` 로 재생성 → 의존 설치 확인 (구 venv 는 검증 뒤 제거)
+    3. `python3.14 -m compileall -q <소스>` 통과 + 기존 테스트 통과
+    4. Python 실사용이 없으면 근거 1줄을 결과에 적고 종결
+* 결과 (2026-10-17):
+    - 판정: Python 실사용은 `fpm-core/`(prj1 번들 미러) 안에만 있고 이 repo 고유 Python 코드·venv·pyproject·requirements 는 없음 — `fpm-core/` 는 `.fpm-integrity.json` 해시 대상이라 여기서 고치지 않음(Issue13 과 같은 이유). 코드 변경 0건
+    - 검출: tracked `.py` 89개 전부 `fpm-core/`(hooks 10 · hooks/lib 9 · services/hub 65 · skills 5). `grep -rnE 'python3\.(9|10|11|12|13|15)|python@3\.|py -3\.|requires-python'` 0건, `venv`·`.venv`·`.python-version`·`pyproject.toml`·`requirements*.txt` 없음. 비-미러 문서의 python 언급은 `python3 -m json.tool`(fBanner·fWarrange SKILL.md) 뿐이라 minor 고정 아님 — 정리 대상 없음
+    - `/usr/bin/python3` 폴백: `fpm-core/hooks/fbot-tick.sh`·`fbot-worker-plist.sh`·`fbot-worker-unit.sh` 의 후보 순회 목록(`command -v python3` 우선, 마지막 후보)에 CLT 3.9 경로가 들어 있음 — 원천(prj1) 소관이라 prj1#Issue641 몫으로 넘김(이 repo 는 전파만 받음)
+    - 검증(CPython 3.14.6, uv): `python3.14 -m compileall -q fpm-core` 통과(0 오류) · `fpm-issue-map/tests/test-*.py` 3종 unittest 38건 OK(13+15+10) · `services/hub/test_*.py` 56개 중 54 PASS / 2 FAIL
+    - FAIL 2건은 전환 무관(brew 3.14.6 에서 동일 실패, 3.9 는 `X | None` 문법 TypeError 라 참고 제외): `test_fbot_org_cache_issue551.py` = 임시 디렉토리에 `lib/fbot-prj.py` 가 없어 FileNotFoundError(미러에 해당 파일 미포함) · `test_issue_map.py` = 70 PASS / 1 FAIL(`[배포본] 생성기 존재` — 미러 위치(~/.claude 아님)에서 생성기 경로를 못 찾음)
+    - 부수: `compileall` 이 tracked `__pycache__/*.cpython-314.pyc` 를 갱신·신규 생성했으나 전부 HEAD 내용으로 복원/삭제해 작업트리 변화 없음. 이후 검증은 `PYTHONDONTWRITEBYTECODE=1`
+    - 남김: 타 세션의 `Issue.md` 미커밋 재포맷(a5af46e 스냅샷 기반, +69/-117)은 건드리지 않음 — 이 이슈 이동은 HEAD blob 기준으로 별도 커밋. 그 작업트리 사본에는 Issue17 이 진행 위치에 남아 있으므로 해당 세션이 정리 시 이 완료본과 합칠 것
+
 ### Issue16: [fSnippet] 플러그인 문서의 전제 조건 절이 옛 구조(fSnippet.app 내장 REST)를 설명 — fSnippetCli 기준으로 갱신 (등록: 2026-10-16, 완료: 2026-10-16, 출처: prj25 검토)
 * Hash: 138d630
 * 목적: 서버 기동 안내가 실제와 달라 처음 설치하는 사용자가 REST 서버를 못 띄운다 — fSnippetCli(brew) 기준으로 맞춘다
