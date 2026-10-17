@@ -94,6 +94,16 @@
       },
       "description": "프롬프트의 한국어 맞춤법·문법 오류를 haiku 로 검사해 프롬프트 위 band 에 표시하고 markdown 에 누적 기록 (mod)",
       "version": "0.1.0"
+    },
+    {
+      "name": "ri-search",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Finfra/f-claude-plugins.git",
+        "path": "ri-search"
+      },
+      "description": "Local semantic search (/ri) over documents, code, screenshots and audio via a rindex-style text index and a DigUp-style media index (engine not bundled)",
+      "version": "0.1.0"
     }
   ]
 }

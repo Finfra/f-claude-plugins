@@ -38,6 +38,7 @@ f-claude-plugins/
 ├── fWarrange/                # 윈도우 레이아웃 저장/복원 (Port: 3016)
 ├── fCapture/                 # 화면·윈도우·영역 캡처 (CLI 직접 실행 — 포트 없음)
 ├── spell-note/               # mod — 프롬프트 한국어 맞춤법 검사 band (function hook, 앱 불필요)
+├── ri-search/                # 로컬 의미 검색 /ri (rindex·digup CLI 래퍼, 엔진 미동봉, 앱 불필요)
 ├── Issue.md                  # 이슈 트래커
 └── nodeForHuman.md           # 휴먼 노드 문서
 ```
@@ -60,6 +61,7 @@ f-claude-plugins/
 | fWarrange    | fWarrange.app    | 3016 | 윈도우 레이아웃 저장/복원         |
 | fCapture     | fCapture CLI     | —    | 화면·윈도우·영역 캡처             |
 | spell-note   | — (mod)          | —    | 프롬프트 한국어 맞춤법 검사·기록  |
+| ri-search    | — (rindex·digup CLI) | — | 로컬 의미 검색 `/ri` (엔진 미동봉) |
 
 > **fCapture 만 예외**: 나머지 6종은 macOS 앱의 REST API(포트 3011~3016)를 `http.request` 로 호출한다. fCapture 는 앱이 아니라 CLI 이므로 서버 포트가 없고 `child_process.execFile` 로 바이너리를 직접 실행한다 — 포트 할당 불필요.
 

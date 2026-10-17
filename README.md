@@ -25,6 +25,7 @@ Claude Code 세션 동작·UI 를 직접 확장하는 플러그인 — 대응 �
 | Plugin                    | Description                                                       |
 | ------------------------- | ----------------------------------------------------------------- |
 | [spell-note](spell-note/) | 프롬프트의 한국어 맞춤법·문법 오류를 프롬프트 위 band 에 표시·기록 |
+| [ri-search](ri-search/) | 로컬 의미 검색 `/ri` — 문서·코드(rindex)와 스크린샷·소리(digup), 엔진은 미동봉 |
 
 # Installation
 
@@ -34,7 +35,7 @@ Claude Code 세션 동작·UI 를 직접 확장하는 플러그인 — 대응 �
 claude plugin install fbanner --registry github:Finfra/f-claude-plugins
 ```
 
-개별 플러그인 이름: `fbanner`, `fboard`, `fsnippet`, `fqrgen`, `fwarrange`, `fgooglesheet`, `fcapture`, `spell-note`
+개별 플러그인 이름: `fbanner`, `fboard`, `fsnippet`, `fqrgen`, `fwarrange`, `fgooglesheet`, `fcapture`, `spell-note`, `ri-search`
 
 ## Manual
 

@@ -1,0 +1,19 @@
+{
+  "name": "ri-search",
+  "version": "0.1.0",
+  "description": "Local semantic search for documents, code, screenshots and audio — a thin /ri front end for a rindex-style text index and a DigUp-style media index",
+  "author": {
+    "name": "Finfra",
+    "url": "https://github.com/Finfra"
+  },
+  "repository": "https://github.com/Finfra/f-claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "search",
+    "semantic",
+    "embedding",
+    "rindex",
+    "digup",
+    "local"
+  ]
+}
