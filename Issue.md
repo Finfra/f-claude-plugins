@@ -71,6 +71,29 @@
 
 ## ✅ 완료
 
+### Issue20: `ri-search`(로컬 의미 검색) 플러그인 이관 — prj3 글로벌 SCAR `/ri` 를 외부 배포용으로 일반화 (등록: 2026-10-18, 완료: 2026-10-18, 출처: 사용자 지시 · prj6 세션)
+* Hash: af5c1f2
+* 목적: prj3 `~/.claude/skills/ri-search/`(SKILL.md·ri.py) + `commands/ri.md` 를 이 마켓플레이스의 플러그인으로 싣는다. 이후 prj3 원본이 바뀌면 여기에도 반영한다(동기 의무는 prj3#Issue1129 가 원본 SCAR 에 명시)
+* 상세:
+    - 원본: `~/.claude/skills/ri-search/` · `~/.claude/commands/ri.md` (prj3 Issue1121·1128) · 엔진(`rindex`·DigUp)은 prj5 `~/_git/___common/hosts/jm4/resource_index/` — 엔진 운영 정본 prj5 `_doc_arch/resource-index.md`
+    - 일반화(이 repo CLAUDE.md «개인 경로·토큰 하드코딩 금지»): `ssh jm4`·`/Volumes/jM4_2T`·`~/_git/___common` 같은 개인 호스트·경로를 설정(env·config)으로 뺀다. 엔진 동봉 여부(플러그인만 vs 엔진 포함)는 이 repo 가 판정하고 결과를 Issue 에 적는다
+    - 플러그인 디렉터리 이름 `ri-search/` · `marketplace.json` 등재
+* 구현 명세:
+    1. 플러그인 골격 + SKILL·커맨드 이관(개인 값 제거) · README(설치·엔진 준비·설정)
+    2. 검증: 개인 값 grep 0건(`jm4`·`jM4_2T`·`nowage`·`___common`) · 로컬 설치 후 `/ri status` 1회
+    3. ⚠️ 원격 push(공개 repo)는 사용자 승인 뒤 — 로컬 커밋까지만
+* 결과 (2026-10-18):
+    - **엔진 동봉 판정: 동봉하지 않음(플러그인만)** — 엔진은 prj5 가 운영하는 개인 인덱서(외장 볼륨 DB·임베딩 모델·tmux 증분 갱신)라 공개 배포물로 일반화할 수 없고, 계약(`rindex search … --json` → `{path,score,mtime,snippet,loc?,copies?}` · `digup search … --json` → `{path,cosine,kind,modified,excerpt}`)만 README «Engine» 에 명시. 계약을 지키는 CLI 면 무엇이든 쓴다
+    - 신설 `ri-search/`: `plugin.json`(0.1.0, MIT, author Finfra) · `skills/ri-search/{SKILL.md,ri.py}` · `commands/ri.md` · `README.md`/`README_kr.md`
+    - 개인 값 제거: `/Volumes/jM4_2T/data/resourceIndex`(RES)·`ssh jm4`·`~/.bin/rindex`·`run_index.sh`·`~/.claude/skills/...` 하드코딩 → 환경 변수 `RI_RINDEX`·`RI_DIGUP`·`RI_LOCAL_MARK`·`RI_SSH_HOST`·`RI_REMOTE_CMD`·`RI_UPDATE_CMD`·`RI_INDEXER_PAT`(+`RI_SSH`·`RI_PGREP`·`RI_TMUX`). 설정이 없으면 PATH 의 `rindex`·`digup` 을 로컬 실행. 원격 위임은 `RI_LOCAL_MARK`·`RI_SSH_HOST` 둘 다 있을 때만, `RI_REMOTE_CMD` 없으면 추측하지 않고 rc 2. `update` 는 `RI_UPDATE_CMD` 필수(없으면 rc 2)
+    - 동작 변화(원본 대비): ① DigUp 부재 시 rindex 0건 병행은 크래시 대신 안내 1줄, `--kind`·`--media` 지정 때만 오류 ② 글로벌 SCAR 가드 박스·`/gq`·`/wq`·graphify 라우팅 참조 제거 ③ 커맨드 경로 `${CLAUDE_PLUGIN_ROOT}`, 스킬 경로 `${CLAUDE_SKILL_DIR}`
+    - TDD: red = `tdd/cases/ri-search-plugin.test.js` 11케이스 0 pass / 11 fail(플러그인 없음) → green = 11 pass, `npm test` 68 pass / 0 fail. `tdd/playlist.md` 10번 행 추가(가짜 rindex/digup/ssh/tmux)
+    - 검증: [v] `grep -rniE 'jm4|jM4_2T|nowage|___common|/Users/' ri-search` 0건 · [v] `claude plugin validate ri-search` 통과 · [v] `claude plugin validate .` 통과(경고 1건 — marketplace description 부재, 기존 상태) · [v] `claude --plugin-dir ri-search -p "/ri-search:ri status"` 가 `${CLAUDE_PLUGIN_ROOT}` 치환 후 실행되어 rindex·DigUp 상태 출력(설정 env 없이 PATH 의 rindex + DigUp.app 도우미 폴백)
+    - `marketplace.json` 등재(`spell-note` 뒤, 0.1.0) · 루트 `README.md`·`CLAUDE.md` 플러그인 표 갱신
+    - 미실측: `/plugin install ri-search@f-claude-plugins` 마켓플레이스 경유 설치(공개 push 전이라 불가) · `RI_SSH_HOST` 실제 ssh 위임(가짜 ssh 로만 검증)
+    - 미수행: `git push` — 사용자 승인 대기(현재 `release/0.1.0` 이 origin 보다 앞섬)
+    - 후속: prj3 원본 변경 시 여기 반영(prj3#Issue1129 동기 의무). 원본 `ri.py` 와의 차이는 위 «동작 변화» 3건
+
 ### Issue17: 📙 Python 3.14 기준 전환 — 인터프리터·venv·하드코딩 버전 정리 (등록: 2026-10-16, 완료: 2026-10-17, 출처: prj55#Issue23 · 총괄: prj5#Issue131)
 * commit: 88430a7 (코드 변경 없는 근거 종결 — 이슈 이동 커밋만)
 * 목적: 3-OS(macOS·Windows·Linux) 기준 Python 이 **3.14** 로 확정됨(2026-10-16 사용자 결정 — Ubuntu 26.04 OS `python3` = 3.14, prj1 배포 하한 3.14+). 이 repo 의 Python 실행 경로·venv·버전 표기를 3.14 에 맞춘다
