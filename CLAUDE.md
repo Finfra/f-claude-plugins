@@ -7,11 +7,12 @@ date: 2026-04-04
 # 스키마 정본: prj6 ~/_git/___oracle/_doc_arch/project-identity-scheme.md
 # ⚠️ 빈 필드는 추측으로 채우지 말 것 — 틀린 값은 빈 값보다 나쁘다
 prj: 20
-identity: macOS 네이티브 앱을 Claude Code 에서 제어하는 플러그인 마켓플레이스
-not: 앱을 만드는 곳이 아니다 — 앱은 prj11~16 이고 여기는 그 REST API 를 감싼 제어 표면이다
+identity: Finfra 가 공개 배포하는 Claude Code 플러그인 마켓플레이스 — fApp 제어 플러그인·세션 동작을 바꾸는 mod(spell-note 등)·fpm 번들(fpm-core)
+identity_origin: macOS 네이티브 앱(fApp)을 REST API 로 Claude Code 에서 제어하는 플러그인 마켓플레이스
+not: 앱이나 원본 SCAR 를 만드는 곳이 아니다 — 앱은 prj11~16, 개인 운영 SCAR·mod 는 prj3 이고 여기는 외부 배포용으로 다듬은 플러그인만 싣는다
 goal_parent: 보조 도구
 lifetime: perpetual
-outcome: fApp 각 앱이 플러그인으로 설치·제어 가능한가
+outcome: Finfra 플러그인이 마켓플레이스 등록 한 번으로 설치·동작하는가
 status: active
 ---
 
@@ -19,7 +20,9 @@ status: active
 
 # 프로젝트 개요
 
-macOS 네이티브 앱을 Claude Code에서 제어할 수 있는 플러그인 모음 저장소. 대부분의 플러그인은 macOS 앱의 REST API를 통해 동작하고(fCapture 만 CLI 직접 실행), Claude Code 마켓플레이스에서 설치 가능.
+Finfra 가 공개 배포하는 Claude Code 플러그인 모음 저장소. 세 부류를 싣는다 — ① **fApp 제어 플러그인**(macOS 앱의 REST API 를 감쌈, fCapture 만 CLI 직접 실행) ② **mod**(function hook 으로 세션 동작·UI 를 바꾸는 플러그인, ex) spell-note) ③ **fpm 번들**(`fpm-core/`). 모두 Claude Code 마켓플레이스에서 설치 가능.
+
+* 원본이 다른 repo 에 있는 플러그인(prj3 mod 등)은 **외부 배포용으로 일반화한 뒤** 옮긴다 — 개인 경로·토큰 하드코딩 금지
 
 # 구조
 
