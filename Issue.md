@@ -7,28 +7,28 @@
 
 ---
 
-## 🤔 결정사항
+# 🤔 결정사항
 
 ---
 
-## 🌱 이슈후보
+# 🌱 이슈후보
 
 1. `_doc_arch/`·`Issue.md` gitignore 정책 재검토 — public remote(Finfra) repo 라 내부 설계문서를 강제 추적할 수 없음. 설계문서를 어디에 영속 보관할지(별도 private repo / obsidian / _doc_base) 결정 필요. (prj1#Issue307 fan-out 중 발견)
 
 ---
 
-## 🚧 진행중
+# 🚧 진행중
 
 
 ---
 
-## 📕 중요
+# 📕 중요
 
 ---
 
-## 📙 일반
+# 📙 일반
 
-### Issue18: [fSnippet] 플러그인 버전 1.1.0 → 1.1.1 — Issue15 동작 수정이 설치 사용자에게 업데이트로 전달되도록 (등록: 2026-10-16, 출처: prj25 검토)
+## Issue18: [fSnippet] 플러그인 버전 1.1.0 → 1.1.1 — Issue15 동작 수정이 설치 사용자에게 업데이트로 전달되도록 (등록: 2026-10-16, 출처: prj25 검토)
 * 목적: Issue15(`expand_snippet`·`create_snippet` 요청 본문 수정, `fef5d6e`)는 MCP 도구 동작이 바뀐 수정인데 버전이 1.1.0 그대로라, 이미 설치한 사용자가 마켓플레이스 업데이트로 받지 못할 수 있다
 * 상세: 버전 표기 3곳 — `fSnippet/plugin.json` `version` · `.claude-plugin/marketplace.json` `fsnippet` 항목 `version` · `fSnippet/mcp-server.js` `serverInfo.version`
 * 구현 명세:
@@ -36,7 +36,7 @@
     - 검증: `grep -rn '"version"\|serverInfo' fSnippet .claude-plugin/marketplace.json` 에서 fsnippet 세 값이 같음 · `node fSnippet/mcp-server.js` initialize 응답 version 확인
     - push 는 사용자 확인 뒤(현재 `release/0.1.0` 이 origin 보다 10커밋 앞섬)
 
-### Issue19: [Repo] `Issue.md` 섹션 깊이가 양식과 달라 `fpm-do` 가 완료를 영영 못 봄 — 섹션 `##`→`#`, 이슈 `###`→`##` (등록: 2026-10-16, 출처: prj25 실측 — Issue14·15·16 위임 3회 모두 45분 시간 초과)
+## Issue19: [Repo] `Issue.md` 섹션 깊이가 양식과 달라 `fpm-do` 가 완료를 영영 못 봄 — 섹션 `##`→`#`, 이슈 `###`→`##` (등록: 2026-10-16, 출처: prj25 실측 — Issue14·15·16 위임 3회 모두 45분 시간 초과)
 * 목적: 이 repo 로 `fpm-do` 위임을 했을 때 완료 커밋이 들어오면 바로 회수되게 한다
 * 상세:
     - 실측(2026-10-16): prj25 가 Issue14·15·16 을 `fpm-do 20` 으로 맡겼고 세 번 모두 «시간 초과(45분)·완료 미기록·rc=1» 로 끝났다. 실제 완료 커밋(`03dad03`·`9a6fa67`·`33ac195`)은 그 안에 이미 있었다
@@ -48,7 +48,7 @@
     - 다른 세션 미커밋분이 있으면 먼저 정리된 뒤 진행(일괄 치환이라 블록 단위 커밋과 충돌)
     - 검증: `bash -c 'source <(sed -n "/^completed_block()/,/^}/p" ~/.bin/fpm-do); completed_block . 16'` 가 Issue16 블록을 출력 · `python3 -c` 로 `issue-completion.py` `issue_completed_in(".", "Issue16")` 참
 
-### Issue13: fpm-core 사본 Apache-2.0 전파 확인 + README 라이선스 절 예외 줄 교체 (prj1#Issue556 이관) (등록: 2026-09-28)
+## Issue13: fpm-core 사본 Apache-2.0 전파 확인 + README 라이선스 절 예외 줄 교체 (prj1#Issue556 이관) (등록: 2026-09-28)
 * 목적: prj1#Issue550 이 fpm-core 원천 라이선스를 Apache-2.0 으로 고쳤다(prj1 4916a28). 이 repo 의 `fpm-core/` 는 fpm 번들 미러라 다음 fpm 출고(`deploy --with-marketplace`) 때 원천에서 전파된다. 전파 뒤 README 라이선스 절 예외 줄을 바꾸면 이 repo 전체가 OSI 오픈(MIT + Apache-2.0)이 된다(2026-09-28 사용자 지시로 prj1#Issue556 에서 이관)
 * trigger: prj1 fpm 다음 출고 — R1 재통과 → main 병합 → `deploy <level> --with-marketplace` (출고 보류 중: 사용자 «테스트가 더 필요함», 2026-09-28)
 * 상세:
@@ -65,13 +65,13 @@
 
 ---
 
-## 📗 선택
+# 📗 선택
 
 ---
 
-## ✅ 완료
+# ✅ 완료
 
-### Issue20: `ri-search`(로컬 의미 검색) 플러그인 이관 — prj3 글로벌 SCAR `/ri` 를 외부 배포용으로 일반화 (등록: 2026-10-18, 완료: 2026-10-18, 출처: 사용자 지시 · prj6 세션)
+## Issue20: `ri-search`(로컬 의미 검색) 플러그인 이관 — prj3 글로벌 SCAR `/ri` 를 외부 배포용으로 일반화 (등록: 2026-10-18, 완료: 2026-10-18, 출처: 사용자 지시 · prj6 세션)
 * Hash: af5c1f2
 * 목적: prj3 `~/.claude/skills/ri-search/`(SKILL.md·ri.py) + `commands/ri.md` 를 이 마켓플레이스의 플러그인으로 싣는다. 이후 prj3 원본이 바뀌면 여기에도 반영한다(동기 의무는 prj3#Issue1129 가 원본 SCAR 에 명시)
 * 상세:
@@ -94,7 +94,7 @@
     - 미수행: `git push` — 사용자 승인 대기(현재 `release/0.1.0` 이 origin 보다 앞섬)
     - 후속: prj3 원본 변경 시 여기 반영(prj3#Issue1129 동기 의무). 원본 `ri.py` 와의 차이는 위 «동작 변화» 3건
 
-### Issue17: 📙 Python 3.14 기준 전환 — 인터프리터·venv·하드코딩 버전 정리 (등록: 2026-10-16, 완료: 2026-10-17, 출처: prj55#Issue23 · 총괄: prj5#Issue131)
+## Issue17: 📙 Python 3.14 기준 전환 — 인터프리터·venv·하드코딩 버전 정리 (등록: 2026-10-16, 완료: 2026-10-17, 출처: prj55#Issue23 · 총괄: prj5#Issue131)
 * commit: 88430a7 (코드 변경 없는 근거 종결 — 이슈 이동 커밋만)
 * 목적: 3-OS(macOS·Windows·Linux) 기준 Python 이 **3.14** 로 확정됨(2026-10-16 사용자 결정 — Ubuntu 26.04 OS `python3` = 3.14, prj1 배포 하한 3.14+). 이 repo 의 Python 실행 경로·venv·버전 표기를 3.14 에 맞춘다
 * depends: prj1#Issue641
@@ -117,7 +117,7 @@
     - 부수: `compileall` 이 tracked `__pycache__/*.cpython-314.pyc` 를 갱신·신규 생성했으나 전부 HEAD 내용으로 복원/삭제해 작업트리 변화 없음. 이후 검증은 `PYTHONDONTWRITEBYTECODE=1`
     - 남김: 타 세션의 `Issue.md` 미커밋 재포맷(a5af46e 스냅샷 기반, +69/-117)은 건드리지 않음 — 이 이슈 이동은 HEAD blob 기준으로 별도 커밋. 그 작업트리 사본에는 Issue17 이 진행 위치에 남아 있으므로 해당 세션이 정리 시 이 완료본과 합칠 것
 
-### Issue16: [fSnippet] 플러그인 문서의 전제 조건 절이 옛 구조(fSnippet.app 내장 REST)를 설명 — fSnippetCli 기준으로 갱신 (등록: 2026-10-16, 완료: 2026-10-16, 출처: prj25 검토)
+## Issue16: [fSnippet] 플러그인 문서의 전제 조건 절이 옛 구조(fSnippet.app 내장 REST)를 설명 — fSnippetCli 기준으로 갱신 (등록: 2026-10-16, 완료: 2026-10-16, 출처: prj25 검토)
 * Hash: 138d630
 * 목적: 서버 기동 안내가 실제와 달라 처음 설치하는 사용자가 REST 서버를 못 띄운다 — fSnippetCli(brew) 기준으로 맞춘다
 * 상세:
@@ -143,7 +143,7 @@
     - 미실측: 신규 설치 후 `/mcp` 연결 화면은 사용자 환경 몫
 
 
-### Issue15: [fSnippet] `mcp-server.js` 의 `expand_snippet`·`create_snippet` 요청 본문이 REST v2 명세와 불일치 — 도구가 실제로 동작하지 않음 (등록: 2026-10-16, 완료: 2026-10-16, 출처: prj25 검토)
+## Issue15: [fSnippet] `mcp-server.js` 의 `expand_snippet`·`create_snippet` 요청 본문이 REST v2 명세와 불일치 — 도구가 실제로 동작하지 않음 (등록: 2026-10-16, 완료: 2026-10-16, 출처: prj25 검토)
 * Hash: fef5d6e
 * 목적: MCP 도구 두 개가 API 가 받지 않는 필드를 보내 확장·생성이 실패한다(코드 대조 판정, 실호출 미재현) — 명세에 맞춰 고치고 실호출로 확인한다
 * 상세:
@@ -165,7 +165,7 @@
     - 실호출 green(jm4 fSnippetCli 1.2.0, stdio 로 번들 서버 기동): `create_snippet` 201 생성 → `search_snippets` 로 확인 → expand 본문 `{abbreviation}` `expanded_text=MCP15-OK` → REST `DELETE` 로 삭제, `snippet_count` 1861 복원·파일 잔존 0
     - 미결: `expand` 의 abbreviation 은 접두 포함 전체형(`@kw{right_command}`)이어야 매칭 — 도구 설명에는 예시만 적었다. 같은 chunked 패턴이 타 플러그인 `makeRequest` 에도 있을 수 있으나 해당 앱 서버 거동은 미실측(이번 범위 밖)
 
-### Issue14: [fSnippet] 플러그인 문서의 `cli/pause` 의미 정정 + `plugin.json` `mcpServers` 절대경로 하드코딩 제거 (등록: 2026-10-15, 완료: 2026-10-16, 출처: prj25#Issue264)
+## Issue14: [fSnippet] 플러그인 문서의 `cli/pause` 의미 정정 + `plugin.json` `mcpServers` 절대경로 하드코딩 제거 (등록: 2026-10-15, 완료: 2026-10-16, 출처: prj25#Issue264)
 * Hash: 0bb5531
 * 목적: fSnippet 플러그인이 실제 동작과 다른 서술을 싣고, 다른 머신·사용자에서 MCP 서버를 못 띄운다 — 실측 기준으로 고친다
 * 상세:
@@ -185,7 +185,7 @@
     - 검증: [v] `grep -rn "/Users/nowage" */plugin.json` 0건 · [v] JSON 파싱 7종 ok · [v] `CLAUDE_PLUGIN_ROOT` 치환 경로로 7종 MCP 서버 initialize 응답 · [v] `npm test` 48 pass
     - 미실측: Claude Code 에서 플러그인 재설치 후 `/mcp` 연결 확인은 사용자 환경 몫(설치 캐시가 필요해 이 세션에서 하지 않음)
 
-### Issue12: 라이선스 프로파일 C — README 의 MIT 주장에 맞는 LICENSE 파일 추가 (등록: 2026-09-27, 완료: 2026-09-27)
+## Issue12: 라이선스 프로파일 C — README 의 MIT 주장에 맞는 LICENSE 파일 추가 (등록: 2026-09-27, 완료: 2026-09-27)
 * Hash: ce897a4
 * 목적: README 는 MIT 라 하지만 LICENSE 파일이 없어 법적으로는 미허가 상태다. 커넥터라 제한 없는 MIT 가 prj6 정본 배정이다
 * 상세:
@@ -204,7 +204,7 @@
     - 검증: [v] `LICENSE` 존재 · [v] README 링크 · [v] `All rights reserved` README* 0건 · push 미수행(사용자 몫)
     - 도구 한계: `issue-tx.py move` 가 `# ` 레벨 섹션만 인식해 이 repo(`## ✅ 완료`)에서 섹션을 못 찾음 → 블록 이동은 수동 편집
 
-### Issue9. Claude Desktop MCP 서버 6종 연결 끊김 — node 경로 resolve 문제 (등록: 2026-08-03, 해결: 2026-08-03, commit: N/A — gitignore 대상이라 커밋 불가) ✅
+## Issue9. Claude Desktop MCP 서버 6종 연결 끊김 — node 경로 resolve 문제 (등록: 2026-08-03, 해결: 2026-08-03, commit: N/A — gitignore 대상이라 커밋 불가) ✅
 * 목적: Claude Desktop 앱에서 fBanner·fBoard·fGoogleSheet·fQRGen·fSnippet·fWarrange 6개 MCP 서버가 모두 "Server disconnected" 상태였던 원인 규명 및 재발 위험 기록 (prj5 세션에서 발견·조사)
 * 상세:
     - `~/Library/Application Support/Claude/claude_desktop_config.json` 의 6개 서버 항목이 `command: "/opt/homebrew/bin/node"` 를 참조했으나, 이 머신은 Homebrew node 미설치·nvm 전용 관리(`~/.nvm/versions/node/{v20.20.2,v24.18.0}`) 상태라 해당 경로가 존재하지 않아 spawn 실패
@@ -218,7 +218,7 @@
     - 근본 대응(설치 스크립트가 bare `"node"` 를 절대경로로 굽지 않게 하는 것)은 Claude Code 자체 동작이라 본 repo 에서 제어 불가 — 재발 시 본 이슈를 근거로 빠르게 진단할 것
 * 종결 사유(hash 없음): `Issue.md` 가 이 repo 의 `.gitignore` 대상 + origin=public(Finfra) → 강제추적·gitignore 수정 금지 지침에 따라 commit 없이 종결 (Issue8 과 동일 사유)
 
-### Issue8. _doc_arch 초기 설계문서 스켈레톤 작성 (등록: 2026-07-21, 해결: 2026-07-21, commit: N/A — gitignore 대상이라 커밋 불가) ✅
+## Issue8. _doc_arch 초기 설계문서 스켈레톤 작성 (등록: 2026-07-21, 해결: 2026-07-21, commit: N/A — gitignore 대상이라 커밋 불가) ✅
 * 목적: 비어 있던 `_doc_arch/` 에 소스코드 기반 초기 설계문서 작성 (prj1#Issue307 fan-out, 방법론 원본 prj1#Issue306)
 * 구현 명세:
     - `_doc_arch/architecture-overview.md` — 레포 구조·마켓플레이스(7 플러그인)·포트 할당(3011~3016)
@@ -228,49 +228,49 @@
 * 종결 사유(hash 없음): `_doc_arch/`·`Issue.md` 가 이 repo 의 `.gitignore` 대상 + origin=public(Finfra) → 강제추적·gitignore 수정 금지 지침에 따라 commit 없이 종결
 * 후속: gitignore 정책 재검토는 이슈후보로만 등록(이번 작업 미처리)
 
-### Issue7. fQRGen 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: fe011c0) ✅
+## Issue7. fQRGen 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: fe011c0) ✅
 * 목적: fQRGen Claude Code 플러그인을 f-claude-plugins 레포로 통합
 * 구현 명세:
   - `_public/agents/claude/`에서 `fQRGen/` 하위로 plugin.json, skills/fqrgen/SKILL.md, README 이동
   - marketplace.json에 fqrgen 플러그인 등록 (`git-subdir` 방식)
   - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, Related Extensions 링크를 본체 레포 참조로 변경)
 
-### Issue6. fBoard 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: b267bd2, 02d1026) ✅
+## Issue6. fBoard 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: b267bd2, 02d1026) ✅
 * 목적: fBoard Claude Code 플러그인을 f-claude-plugins 레포로 통합
 * 구현 명세:
   - `_public/agents/claude/`에서 `fBoard/` 하위로 plugin.json, skills, README 이동
   - plugin.json에 repository를 f-claude-plugins로 변경, keywords/license 추가
   - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, 상대링크를 본체 레포 참조로 변경)
 
-### Issue5. fSnippet 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: bbfea18) ✅
+## Issue5. fSnippet 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: bbfea18) ✅
 * 목적: fSnippet Claude Code 플러그인을 f-claude-plugins 레포로 통합
 * 구현 명세:
   - `_public/agents/claude/`에서 `fSnippet/` 하위로 plugin.json, skills, README 이동
   - marketplace.json에 fsnippet 플러그인 등록 (`git-subdir` 방식)
   - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, Related Extensions 링크를 GitHub 절대 URL로 변경)
 
-### Issue2. fBanner 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 8fbe0ac) ✅
+## Issue2. fBanner 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 8fbe0ac) ✅
 * 목적: fBanner Claude Code 플러그인을 마켓플레이스 배포 가능한 형태로 구성
 * 구현 명세:
   - `fBanner/` 하위에 plugin.json, skills/fbanner/SKILL.md, README 구성
   - marketplace.json에 fbanner 플러그인 등록 (`git-subdir` 방식)
   - README_kr.md / README.md에 마켓플레이스 설치 방법 기재
 
-### Issue4. fWarrange 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 98fcaa7) ✅
+## Issue4. fWarrange 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 98fcaa7) ✅
 * 목적: fWarrange Claude Code 플러그인을 f-claude-plugins 레포로 통합
 * 구현 명세:
   - `_public/agents/claude/`에서 `fWarrange/` 하위로 plugin.json, skills, README 이동
   - marketplace.json에 fwarrange 플러그인 등록 (`git-subdir` 방식)
   - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, 상대링크 등)
 
-### Issue3. fGoogleSheet 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 73d34bf) ✅
+## Issue3. fGoogleSheet 플러그인 패키지 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: 73d34bf) ✅
 * 목적: fGoogleSheet Claude Code 플러그인을 f-claude-plugins 레포로 통합
 * 해결사항:
   - `_public/agents/claude/`에서 `fGoogleSheet/` 하위로 plugin.json, skills, README 이동
   - marketplace.json에 fgooglesheet 플러그인 등록 (`git-subdir` 방식)
   - README.md / README_kr.md를 통합 레포 구조에 맞게 수정 (설치 경로, 상대링크 등)
 
-### Issue1. .gitignore 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: b152bf0) ✅
+## Issue1. .gitignore 추가 (등록: 2026-03-19, 해결: 2026-03-19, commit: b152bf0) ✅
 * 목표: macOS + Node.js 프로젝트에 맞는 .gitignore 설정
 * 구현:
   - macOS 시스템 파일 제외 (.DS_Store, .AppleDouble 등)
@@ -280,15 +280,15 @@
 
 ---
 
-## ⏸️ 보류
+# ⏸️ 보류
 
 ---
 
-## 🚫 취소
+# 🚫 취소
 
 ---
 
-## 📜 참고
+# 📜 참고
 
 - `PDFKit`: macOS 내장 PDF 처리 프레임워크 (추가 설치 불필요)
 - `UniformTypeIdentifiers`: 파일 형식 식별 (UTType)
