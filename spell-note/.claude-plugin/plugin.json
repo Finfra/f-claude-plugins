@@ -1,0 +1,21 @@
+{
+  "name": "spell-note",
+  "version": "0.1.0",
+  "description": "프롬프트의 한국어 맞춤법·문법 오류를 haiku 로 검사해 프롬프트 위 band 에 짧게 표시하고 markdown 파일에 누적 기록",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "nowage",
+    "url": "https://github.com/nowage"
+  },
+  "repository": "https://github.com/Finfra/f-claude-plugins",
+  "license": "MIT",
+  "keywords": ["korean", "spelling", "grammar", "hangul", "mod", "맞춤법"],
+  "userConfig": {
+    "logPath": {
+      "type": "string",
+      "title": "기록 파일 경로",
+      "description": "감지한 오류를 append 할 markdown 파일. ~ 는 $HOME 으로 치환",
+      "default": "~/.claude/spell-note/SpellingAndGrammarChecker.md"
+    }
+  }
+}

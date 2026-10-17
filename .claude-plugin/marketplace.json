@@ -84,6 +84,16 @@
       },
       "description": "fpm 핵심 SCAR — pm 프로젝트 관리(cdf), hub HTML 렌더 + 양방향 Q&A + Live Dashboard. 글로벌 hub/dashboard 스택 번들.",
       "version": "0.8.3"
+    },
+    {
+      "name": "spell-note",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/Finfra/f-claude-plugins.git",
+        "path": "spell-note"
+      },
+      "description": "프롬프트의 한국어 맞춤법·문법 오류를 haiku 로 검사해 프롬프트 위 band 에 표시하고 markdown 에 누적 기록 (mod)",
+      "version": "0.1.0"
     }
   ]
 }

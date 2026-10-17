@@ -18,6 +18,14 @@ Claude Code 마켓플레이스에서 설치할 수 있는 Finfra 플러그인 �
 | [fGoogleSheet](fGoogleSheet/) | Google Sheets 데이터 관리                   | 3013 | fGoogleSheet.app |
 | [fCapture](fCapture/)         | macOS 화면·윈도우·영역 캡처                 | —    | fCapture CLI     |
 
+## Mods
+
+Claude Code 세션 동작·UI 를 직접 확장하는 플러그인 — 대응 앱이 필요 없습니다.
+
+| Plugin                    | Description                                                       |
+| ------------------------- | ----------------------------------------------------------------- |
+| [spell-note](spell-note/) | 프롬프트의 한국어 맞춤법·문법 오류를 프롬프트 위 band 에 표시·기록 |
+
 # Installation
 
 ## Claude Code Marketplace
@@ -26,7 +34,7 @@ Claude Code 마켓플레이스에서 설치할 수 있는 Finfra 플러그인 �
 claude plugin install fbanner --registry github:Finfra/f-claude-plugins
 ```
 
-개별 플러그인 이름: `fbanner`, `fboard`, `fsnippet`, `fqrgen`, `fwarrange`, `fgooglesheet`
+개별 플러그인 이름: `fbanner`, `fboard`, `fsnippet`, `fqrgen`, `fwarrange`, `fgooglesheet`, `fcapture`, `spell-note`
 
 ## Manual
 
@@ -39,7 +47,7 @@ claude plugin install .
 # Prerequisites
 
 * macOS
-* 각 플러그인에 대응하는 macOS 앱이 실행 중이어야 합니다
+* fApp 플러그인: 대응 macOS 앱이 실행 중이어야 합니다 (mod 는 앱 불필요)
 * Claude Code CLI
 
 # Repository Structure
