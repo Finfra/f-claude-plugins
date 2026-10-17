@@ -24,6 +24,7 @@ date: 2026.09.26
 | 5 | `stdin-close-inflight` | stdin이 닫혀도 진행 중인 비동기 도구 호출의 응답은 버려지지 않고 전달된다 | Issue10 실측 발견: rl.on('close', process.exit) 패턴이 in-flight 응답을 버림(fQRGen/mcp-server.js 유래) | `node --test tdd/cases/stdin-close-inflight.test.js` | ✅ |
 | 6 | `fcapture-error-paths` | 잘못된 mode, width 0, 프리셋 파일 부재, 바이너리 미발견, region_user 프리셋이 모두 isError=true와 사람이 읽을 수 있는 메시지로 반환된다 | Issue10 명세 준수·검증 결과(에러 경로 4종, region_user 거부) | `node --test tdd/cases/fcapture-error-paths.test.js` | ✅ |
 | 7 | `fpm-core-hub-regression` | fpm-core hub 서비스 회귀 테스트(i18n 패리티, 토큰 마스킹, allowlist 등)가 전부 exit 0으로 통과한다 | fpm-core/services/hub/test_*.py 24종 (예: test_i18n_parity.py 헤더 '실행: python3 services/hub/test_i18n_parity.py') | `for t in fpm-core/services/hub/test_*.py; do python3 $t; done` — 미러 23/24. `test_issue_map.py` 는 번들 생성기를 `plugins/fpm-core/…`(___pm 레이아웃)로만 찾아 미러에서 [배포본] 1건 FAIL → **원본 ___pm 에서 실행 72/72 pass 로 대체**, 탐색 수정은 prj1 이관(미러 파일은 `.fpm-integrity.json` 해시 대상이라 여기서 고치지 않음) | ✅ 대체 |
+| 9 | `spell-note-plugin-test` | spell-note mod 의 판정·파싱·기록 서식·기록 경로 설정·band 양보가 명세대로다 | spell-note 공개 이관(2026.10.17) — 기록 경로 하드코딩을 userConfig `logPath` 로 일반화 | `claude plugin validate spell-note && claude plugin test spell-note` | ✅ |
 
 # 규약
 
