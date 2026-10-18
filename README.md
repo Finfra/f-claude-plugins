@@ -79,4 +79,4 @@ f-claude-plugins/
 
 MIT — 전문은 [LICENSE](LICENSE) 참조.
 
-* 예외: `fpm-core/` 는 fpm 번들 미러이며 이 MIT 의 대상이 아니다. 라이선스는 [fpm-core/.claude-plugin/plugin.json](fpm-core/.claude-plugin/plugin.json) 의 `license` 필드를 따른다
+* 예외: `fpm-core/` 는 Apache-2.0(fpm 번들 미러). 라이선스는 [fpm-core/.claude-plugin/plugin.json](fpm-core/.claude-plugin/plugin.json) 의 `license` 필드를 따른다
