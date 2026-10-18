@@ -19,20 +19,20 @@
 
 # 🚧 진행중
 
-
----
-
 # 📕 중요
-
----
 
 # 📙 일반
 
-## Issue13: fpm-core 사본 Apache-2.0 전파 확인 + README 라이선스 절 예외 줄 교체 (prj1#Issue556 이관) (등록: 2026-09-28)
+# 📗 선택
+
+# ✅ 완료
+
+## Issue13: fpm-core 사본 Apache-2.0 전파 확인 + README 라이선스 절 예외 줄 교체 (prj1#Issue556 이관) (등록: 2026-09-28, 완료: 2026-10-18, 출처: 현재 버전으로 사용자 없음 진행) (해결: 2026-10-18, commit: e0c551b) ✅
 * 목적: prj1#Issue550 이 fpm-core 원천 라이선스를 Apache-2.0 으로 고쳤다(prj1 4916a28). 이 repo 의 `fpm-core/` 는 fpm 번들 미러라 다음 fpm 출고(`deploy --with-marketplace`) 때 원천에서 전파된다. 전파 뒤 README 라이선스 절 예외 줄을 바꾸면 이 repo 전체가 OSI 오픈(MIT + Apache-2.0)이 된다(2026-09-28 사용자 지시로 prj1#Issue556 에서 이관)
-* trigger: prj1 fpm 다음 출고 — R1 재통과 → main 병합 → `deploy <level> --with-marketplace` (출고 보류 중: 사용자 «테스트가 더 필요함», 2026-09-28)
+* trigger: prj1 fpm 다음 출고 — R1 재통과 → main 병합 → `deploy <level> --with-marketplace` (출고 보류 중: 사용자 «테스트가 더 필요함», 2026-09-28) → 2026-10-18 현재 버전으로 진행
 * 상세:
     - 현황(2026-09-28): `fpm-core/.claude-plugin/plugin.json` `license` = `PolyForm-Noncommercial-1.0.0` — 원천(prj1)만 `Apache-2.0`
+    - 현황(2026-10-18): `fpm-core/.claude-plugin/plugin.json` `license` = `Apache-2.0` 전파됨 (prj1 원천 완료)
     - ⚠️ `fpm-core/` 는 여기서 직접 고치지 않는다 — `.fpm-integrity.json` 해시 대상이고 전파는 prj1 원천에서만 한다(Issue12 결과와 같은 이유)
     - ⚠️ README 줄은 **전파 뒤에만** 바꾼다 — 먼저 바꾸면 미러 실물(PolyForm NC)과 README 가 어긋난다
     - 바꿀 줄: README 라이선스 절 «`fpm-core/` 는 fpm 번들 미러이며 이 MIT 의 대상이 아니다» → «`fpm-core/` 는 Apache-2.0(fpm 번들 미러)»
@@ -40,16 +40,8 @@
 * 구현 명세:
     - 검증: `fpm-core/.claude-plugin/plugin.json` `license` = `Apache-2.0` · `bash ~/_git/___pm/sh/gen-integrity-manifest.sh --check --bundle fpm-core` OK · README 예외 줄 교체
     - 금지: `git push`(공개 라이선스 표기 변경은 사용자가 push)
-
-
-
----
-
-# 📗 선택
-
----
-
-# ✅ 완료
+* 결과 (2026-10-18):
+    - fpm-core/.claude-plugin/plugin.json license = Apache-2.0 확인 (prj1 e0c551b 이상 정합) · gen-integrity-manifest.sh --check --bundle fpm-core OK(번들 223 파일 매니페스트 일치) · README.md 라이선스 절 «fpm-core는 fpm 번들 미러이며 이 MIT의 대상이 아니다» → «fpm-core는 Apache-2.0(fpm 번들 미러)» 교체 · 이 repo 전체 라이선스는 이제 MIT(본체) + Apache-2.0(fpm 번들) 오픈
 
 ## Issue18: [fSnippet] 플러그인 버전 1.1.0 → 1.1.1 — Issue15 동작 수정이 설치 사용자에게 업데이트로 전달되도록 (등록: 2026-10-16, 완료: 2026-10-18, 출처: prj25 검토) (해결: 2026-10-18, commit: ea617e1) ✅
 * 목적: Issue15(`expand_snippet`·`create_snippet` 요청 본문 수정, `fef5d6e`)는 MCP 도구 동작이 바뀐 수정인데 버전이 1.1.0 그대로라, 이미 설치한 사용자가 마켓플레이스 업데이트로 받지 못할 수 있다
