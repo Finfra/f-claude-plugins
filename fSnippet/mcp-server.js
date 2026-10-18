@@ -94,7 +94,7 @@ async function main() {
           }
         }) + '\n');
       } else if (msg.method === 'initialize') {
-        process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { protocolVersion: '2024-11-05', capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'fSnippet', version: '1.1.0' } } }) + '\n');
+        process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { protocolVersion: '2024-11-05', capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'fSnippet', version: '1.1.1' } } }) + '\n');
       } else if (msg.method === 'tools/list') {
         process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { ttlMs: 60000, cacheScope: 'private', tools } }) + '\n');
       } else if (msg.method === 'tools/call') {
