@@ -28,14 +28,6 @@
 
 # 📙 일반
 
-## Issue18: [fSnippet] 플러그인 버전 1.1.0 → 1.1.1 — Issue15 동작 수정이 설치 사용자에게 업데이트로 전달되도록 (등록: 2026-10-16, 출처: prj25 검토)
-* 목적: Issue15(`expand_snippet`·`create_snippet` 요청 본문 수정, `fef5d6e`)는 MCP 도구 동작이 바뀐 수정인데 버전이 1.1.0 그대로라, 이미 설치한 사용자가 마켓플레이스 업데이트로 받지 못할 수 있다
-* 상세: 버전 표기 3곳 — `fSnippet/plugin.json` `version` · `.claude-plugin/marketplace.json` `fsnippet` 항목 `version` · `fSnippet/mcp-server.js` `serverInfo.version`
-* 구현 명세:
-    - 세 곳을 같은 값(1.1.1, patch — 기능 추가 없음)으로 올린다
-    - 검증: `grep -rn '"version"\|serverInfo' fSnippet .claude-plugin/marketplace.json` 에서 fsnippet 세 값이 같음 · `node fSnippet/mcp-server.js` initialize 응답 version 확인
-    - push 는 사용자 확인 뒤(현재 `release/0.1.0` 이 origin 보다 10커밋 앞섬)
-
 ## Issue13: fpm-core 사본 Apache-2.0 전파 확인 + README 라이선스 절 예외 줄 교체 (prj1#Issue556 이관) (등록: 2026-09-28)
 * 목적: prj1#Issue550 이 fpm-core 원천 라이선스를 Apache-2.0 으로 고쳤다(prj1 4916a28). 이 repo 의 `fpm-core/` 는 fpm 번들 미러라 다음 fpm 출고(`deploy --with-marketplace`) 때 원천에서 전파된다. 전파 뒤 README 라이선스 절 예외 줄을 바꾸면 이 repo 전체가 OSI 오픈(MIT + Apache-2.0)이 된다(2026-09-28 사용자 지시로 prj1#Issue556 에서 이관)
 * trigger: prj1 fpm 다음 출고 — R1 재통과 → main 병합 → `deploy <level> --with-marketplace` (출고 보류 중: 사용자 «테스트가 더 필요함», 2026-09-28)
@@ -58,6 +50,16 @@
 ---
 
 # ✅ 완료
+
+## Issue18: [fSnippet] 플러그인 버전 1.1.0 → 1.1.1 — Issue15 동작 수정이 설치 사용자에게 업데이트로 전달되도록 (등록: 2026-10-16, 완료: 2026-10-18, 출처: prj25 검토) (해결: 2026-10-18, commit: ea617e1) ✅
+* 목적: Issue15(`expand_snippet`·`create_snippet` 요청 본문 수정, `fef5d6e`)는 MCP 도구 동작이 바뀐 수정인데 버전이 1.1.0 그대로라, 이미 설치한 사용자가 마켓플레이스 업데이트로 받지 못할 수 있다
+* 상세: 버전 표기 3곳 — `fSnippet/plugin.json` `version` · `.claude-plugin/marketplace.json` `fsnippet` 항목 `version` · `fSnippet/mcp-server.js` `serverInfo.version`
+* 구현 명세:
+    - 세 곳을 같은 값(1.1.1, patch — 기능 추가 없음)으로 올린다
+    - 검증: `grep -rn '"version"\|serverInfo' fSnippet .claude-plugin/marketplace.json` 에서 fsnippet 세 값이 같음 · `node fSnippet/mcp-server.js` initialize 응답 version 확인
+    - push 는 사용자 확인 뒤(현재 `release/0.1.0` 이 origin 보다 10커밋 앞섬)
+* 결과 (2026-10-18):
+    - fSnippet/plugin.json · .claude-plugin/marketplace.json · fSnippet/mcp-server.js 버전 1.1.1로 일치 · MCP initialize 응답 serverInfo.version = 1.1.1 확인 · 마켓플레이스 설치 사용자는 업데이트로 Issue15 수정(MCP 도구 API 명세 일치)을 받게 됨
 
 ## Issue19: [Repo] `Issue.md` 섹션 깊이가 양식과 달라 `fpm-do` 가 완료를 영영 못 봄 — 섹션 `##`→`#`, 이슈 `###`→`##` (등록: 2026-10-16, 출처: prj25 실측 — Issue14·15·16 위임 3회 모두 45분 시간 초과) (해결: 2026-10-18, commit: 550e4f3) ✅
 * 목적: 이 repo 로 `fpm-do` 위임을 했을 때 완료 커밋이 들어오면 바로 회수되게 한다
